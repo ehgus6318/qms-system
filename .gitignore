@@ -30,8 +30,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — .env.example 은 커밋 허용 (예시 파일)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +44,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma
+prisma/migrations/
+# node_modules 내 generated client는 postinstall로 재생성
+# prisma generate 결과물은 git에 포함하지 않음

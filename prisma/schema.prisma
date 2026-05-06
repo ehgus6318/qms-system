@@ -1,0 +1,648 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// prisma/schema.prisma
+// QMS/DCC 품질관리시스템 — PostgreSQL 데이터베이스 스키마
+// Prisma ORM v5+
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma v7: URL은 prisma.config.ts 에서 설정 (아래 파일 참고)
+// 실제 연결은 src/lib/prisma.ts 의 PrismaPostgres adapter 사용
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+/// 사용자 계정 상태
+enum UserStatus {
+  ACTIVE      // 활성
+  INACTIVE    // 비활성 (관리자 비활성화)
+  SUSPENDED   // 정지 (보안 사유)
+}
+
+/// 시스템 역할
+enum UserRole {
+  ADMIN       // 시스템 관리자 — 전체 권한
+  MANAGER     // 관리자 — 결재 + 대부분 관리
+  APPROVER    // 결재자 — 결재 처리 가능
+  USER        // 일반 사용자 — 문서 조회·등록
+  VIEWER      // 조회자 — 읽기 전용
+}
+
+/// 개별 권한 코드
+enum PermissionCode {
+  DOCUMENT_VIEW      // 문서 조회
+  DOCUMENT_CREATE    // 문서 등록
+  DOCUMENT_EDIT      // 문서 수정
+  DOCUMENT_DELETE    // 문서 삭제
+  DOCUMENT_APPROVE   // 문서 결재(결재자 지정)
+  REVISION_VIEW      // 개정 조회
+  REVISION_CREATE    // 개정 요청
+  REVISION_APPROVE   // 개정 승인
+  APPROVAL_VIEW      // 승인관리 조회
+  APPROVAL_PROCESS   // 결재 처리
+  TRAINING_VIEW      // 교육훈련 조회
+  TRAINING_MANAGE    // 교육훈련 관리
+  RECORDS_VIEW       // 기록 조회
+  RECORDS_MANAGE     // 기록 관리
+  INSPECTION_VIEW    // 검사 조회
+  REPORTS_VIEW       // 보고서 조회
+  SYSTEM_MANAGE      // 시스템 관리
+  USER_MANAGE        // 사용자 관리
+}
+
+/// 문서 상태
+enum DocumentStatus {
+  DRAFT           // 초안
+  IN_REVIEW       // 검토 중
+  APPROVED        // 승인 완료
+  REJECTED        // 반려
+  UNDER_REVISION  // 개정 중
+  ARCHIVED        // 폐기
+}
+
+/// 문서 접근 권한 수준
+enum AccessLevel {
+  PUBLIC        // 공개 — 전 직원 조회
+  INTERNAL      // 내부 — 등록된 부서만
+  CONFIDENTIAL  // 기밀 — 명시적 허가 필요
+}
+
+/// 부서별 문서 접근 권한
+enum DeptDocPermission {
+  FULL  // 전체 (조회 + 다운로드 + 출력)
+  READ  // 조회만
+  NONE  // 접근 불가
+}
+
+/// 결재 요청 / 결재 단계 상태
+enum ApprovalStatus {
+  PENDING    // 결재 대기
+  IN_REVIEW  // 검토 중
+  APPROVED   // 승인
+  REJECTED   // 반려
+  ON_HOLD    // 보류
+  CANCELLED  // 취소
+}
+
+/// 결재 단계 상태 (단계별 세분화)
+enum ApprovalStepStatus {
+  PENDING    // 대기 (이전 단계 미완료)
+  IN_REVIEW  // 검토 중 (현재 담당자)
+  APPROVED   // 승인
+  REJECTED   // 반려
+  ON_HOLD    // 보류
+  SKIPPED    // 건너뜀 (조건부 건너뜀)
+}
+
+/// 개정 요청 상태
+enum RevisionStatus {
+  PENDING      // 개정 대기
+  IN_PROGRESS  // 개정 진행 중
+  COMPLETED    // 개정 완료
+  REJECTED     // 개정 반려
+}
+
+/// 변경 항목 유형
+enum ChangeItemType {
+  ADDED     // 추가
+  MODIFIED  // 수정
+  REMOVED   // 삭제
+}
+
+/// 첨부파일 변경 유형
+enum FileChangeType {
+  ADDED      // 신규 추가
+  REPLACED   // 교체
+  REMOVED    // 삭제
+  UNCHANGED  // 변경 없음
+}
+
+/// 회람 상태
+enum CirculationStatus {
+  PENDING    // 미열람
+  READ       // 열람 완료
+  CONFIRMED  // 확인 서명 완료
+}
+
+/// 긴급도
+enum Urgency {
+  NORMAL    // 일반
+  URGENT    // 긴급
+  CRITICAL  // 즉시 처리
+}
+
+/// 감사 로그 동작 유형
+enum AuditAction {
+  CREATE   // 생성
+  UPDATE   // 수정
+  DELETE   // 삭제
+  VIEW     // 조회 (민감 문서)
+  APPROVE  // 결재 승인
+  REJECT   // 반려
+  HOLD     // 보류
+  LOGIN    // 로그인
+  LOGOUT   // 로그아웃
+  EXPORT   // 파일 내보내기/출력
+  RESTORE  // 복원
+}
+
+/// 알림 유형
+enum NotificationType {
+  APPROVAL_REQUEST    // 결재 요청 알림
+  APPROVAL_RESULT     // 결재 결과 알림
+  REVISION_REQUEST    // 개정 요청 알림
+  REVISION_RESULT     // 개정 결과 알림
+  CIRCULATION         // 회람 알림
+  EXPIRY_WARNING      // 문서 만료 예정 경고
+  SYSTEM              // 시스템 공지
+}
+
+// =============================================================================
+// MODELS
+// =============================================================================
+
+// ── 조직 ────────────────────────────────────────────────────────────────────
+
+/// 부서 (계층 구조 지원)
+model Department {
+  id       String  @id @default(cuid())
+  name     String
+  code     String  @unique   // 예: D01, QUAL, PROD
+  parentId String?
+
+  parent   Department?  @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children Department[] @relation("DeptHierarchy")
+
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users            User[]
+  documents        Document[]
+  approvalSteps    ApprovalStep[]
+  circulations     Circulation[]
+  appliedDocuments DocumentAppliedDept[]
+
+  @@map("departments")
+}
+
+// ── 사용자 ──────────────────────────────────────────────────────────────────
+
+/// 시스템 사용자
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String     // bcrypt hash; 실제 비밀번호 절대 저장 금지
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  position  String  // 직급: 사원, 대리, 과장, 차장, 부장, 이사
+  jobTitle  String  // 직책: QMS 담당, 팀장 등
+
+  role   UserRole   @default(USER)
+  status UserStatus @default(ACTIVE)
+
+  avatarInitials String @default("")
+  avatarColor    String @default("bg-blue-600")
+  phone          String?
+
+  joinedAt    DateTime?
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  permissions        UserPermission[]
+  authoredDocuments  Document[]        @relation("DocumentAuthor")
+  approvalRequests   ApprovalRequest[] @relation("ApprovalRequester")
+  approvalSteps      ApprovalStep[]    @relation("StepApprover")
+  revisionRequests   RevisionRequest[] @relation("RevisionRequester")
+  circulations       Circulation[]     @relation("CirculationRep")
+  trainingRecords    TrainingRecord[]
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+  grantedPermissions UserPermission[]  @relation("PermissionGranter")
+
+  @@index([email])
+  @@index([departmentId])
+  @@index([role, status])
+  @@map("users")
+}
+
+/// 사용자-권한 매핑 (M:N with extra fields)
+model UserPermission {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission PermissionCode
+
+  grantedById String?
+  grantedBy   User?   @relation("PermissionGranter", fields: [grantedById], references: [id])
+  grantedAt   DateTime @default(now())
+
+  @@unique([userId, permission])
+  @@map("user_permissions")
+}
+
+// ── 문서 분류 ────────────────────────────────────────────────────────────────
+
+/// 문서 분류 카테고리 (계층 트리)
+model DocumentCategory {
+  id    String @id @default(cuid())
+  label String
+  code  String? @unique  // 예: QP, WI, FORM
+
+  parentId String?
+  parent   DocumentCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children DocumentCategory[] @relation("CategoryTree")
+
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents Document[]
+
+  @@map("document_categories")
+}
+
+// ── 문서 ─────────────────────────────────────────────────────────────────────
+
+/// 문서 (마스터 레코드)
+model Document {
+  id             String           @id @default(cuid())
+  no             String           @unique  // 예: QP-2024-001
+  name           String
+  type           String           // 품질절차서, 작업지침서, 기록서식, 규정...
+  categoryId     String?
+  category       DocumentCategory? @relation(fields: [categoryId], references: [id])
+
+  /// 현재 유효 버전 문자열 (실제 버전 내용은 DocumentVersion에)
+  currentVersion String @default("v1.0")
+  status         DocumentStatus @default(DRAFT)
+  accessLevel    AccessLevel    @default(INTERNAL)
+
+  authorId     String
+  author       User       @relation("DocumentAuthor", fields: [authorId], references: [id])
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  description     String?  @db.Text
+  keywords        String[] // PostgreSQL text array
+  retentionPeriod String?  // 보존 기한: 1년, 3년, 5년, 10년, 영구
+  relatedStandard String?  // 관련 표준: ISO 9001:2015 등
+  effectiveDate   DateTime?
+  archivedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  versions        DocumentVersion[]
+  files           DocumentFile[]
+  appliedDepts    DocumentAppliedDept[]
+  approvalReqs    ApprovalRequest[]
+  revisionReqs    RevisionRequest[]
+  circulations    Circulation[]
+  trainingRecords TrainingRecord[]
+
+  @@index([status])
+  @@index([authorId])
+  @@index([departmentId])
+  @@index([accessLevel])
+  @@index([categoryId])
+  @@map("documents")
+}
+
+/// 문서 버전 이력
+model DocumentVersion {
+  id         String @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  version       String         // v1.0, v1.1, v2.0
+  status        DocumentStatus
+  changeReason  String?
+  changeSummary String?  @db.Text
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  files        DocumentFile[]
+  circulations Circulation[]
+
+  @@unique([documentId, version])
+  @@index([documentId])
+  @@map("document_versions")
+}
+
+/// 문서 첨부파일 메타데이터 (실제 파일은 외부 스토리지 — S3/로컬)
+model DocumentFile {
+  id         String          @id @default(cuid())
+  documentId String
+  document   Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versionId  String?
+  version    DocumentVersion? @relation(fields: [versionId], references: [id])
+
+  fileName      String
+  fileSize      String  // 표시용: "2.4 MB"
+  fileSizeBytes Int     // 실제 바이트 크기
+  fileType      String  // PDF, DOCX, XLSX, HWP...
+  mimeType      String?
+  storagePath   String  // S3 key 또는 로컬 경로
+  storageUrl    String? // Presigned URL (캐시용, 주기적 갱신 필요)
+
+  uploadedById String?
+  isActive     Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([documentId])
+  @@map("document_files")
+}
+
+/// 문서 적용 부서 (부서별 접근 권한)
+model DocumentAppliedDept {
+  id           String             @id @default(cuid())
+  documentId   String
+  document     Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department         @relation(fields: [departmentId], references: [id])
+  permission   DeptDocPermission  @default(READ)
+
+  createdAt DateTime @default(now())
+
+  @@unique([documentId, departmentId])
+  @@map("document_applied_depts")
+}
+
+// ── 결재 ─────────────────────────────────────────────────────────────────────
+
+/// 결재 요청 (ApprovalRequest)
+model ApprovalRequest {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+  docVer     String   // 결재 대상 버전
+
+  requestedById String
+  requestedBy   User   @relation("ApprovalRequester", fields: [requestedById], references: [id])
+
+  dueDate        DateTime
+  urgency        Urgency        @default(NORMAL)
+  status         ApprovalStatus @default(PENDING)
+  requestComment String?  @db.Text
+  docDescription String?  @db.Text
+
+  /// 현재 진행 중인 결재 단계 인덱스 (0-based)
+  currentStepIdx Int @default(0)
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  steps       ApprovalStep[]
+  relatedDocs ApprovalRelatedDoc[]
+
+  @@index([status])
+  @@index([requestedById])
+  @@index([documentId])
+  @@index([dueDate])
+  @@map("approval_requests")
+}
+
+/// 결재 단계
+model ApprovalStep {
+  id        String          @id @default(cuid())
+  requestId String
+  request   ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  stepOrder    Int                // 순서: 1, 2, 3
+  role         String             // 역할 표시: "팀장 검토", "품질 검토", "최종 승인"
+  approverId   String?
+  approver     User?              @relation("StepApprover", fields: [approverId], references: [id])
+  departmentId String?
+  department   Department?        @relation(fields: [departmentId], references: [id])
+
+  status    ApprovalStepStatus @default(PENDING)
+  comment   String?  @db.Text
+  duration  String?  // 소요 시간 표시: "2일"
+  decidedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+  @@index([approverId])
+  @@map("approval_steps")
+}
+
+/// 결재 요청 관련 문서 (M:N)
+model ApprovalRelatedDoc {
+  id         String          @id @default(cuid())
+  requestId  String
+  request    ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  documentId String
+
+  @@unique([requestId, documentId])
+  @@map("approval_related_docs")
+}
+
+// ── 개정 ─────────────────────────────────────────────────────────────────────
+
+/// 개정 요청
+model RevisionRequest {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+
+  currentVer    String  // 현재 버전: v1.0
+  newVer        String  // 개정 버전: v2.0
+  reason        String  // 개정 사유: 법규 변경, 프로세스 변경...
+  changeSummary String  @db.Text
+  beforeContent String? @db.Text  // 개정 전 주요 내용 (비교용)
+  afterContent  String? @db.Text  // 개정 후 주요 내용 (비교용)
+
+  requestedById String
+  requestedBy   User   @relation("RevisionRequester", fields: [requestedById], references: [id])
+
+  effectiveDate  DateTime?
+  status         RevisionStatus  @default(PENDING)
+  approvalStatus ApprovalStatus?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  changeItems       RevisionChangeItem[]
+  attachmentChanges RevisionAttachmentChange[]
+  approvalSteps     RevisionApprovalStep[]
+
+  @@index([status])
+  @@index([requestedById])
+  @@index([documentId])
+  @@map("revision_requests")
+}
+
+/// 개정 변경 항목 (섹션별 Before/After)
+model RevisionChangeItem {
+  id         String          @id @default(cuid())
+  revisionId String
+  revision   RevisionRequest @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  section     String          // 변경된 섹션명
+  changeType  ChangeItemType
+  before      String?  @db.Text
+  after       String?  @db.Text
+  description String?
+  order       Int      @default(0)  // 표시 순서
+
+  @@index([revisionId])
+  @@map("revision_change_items")
+}
+
+/// 개정 시 첨부파일 변경 이력
+model RevisionAttachmentChange {
+  id         String          @id @default(cuid())
+  revisionId String
+  revision   RevisionRequest @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  fileName   String
+  fileSize   String
+  changeType FileChangeType
+
+  @@map("revision_attachment_changes")
+}
+
+/// 개정 요청의 결재 단계
+model RevisionApprovalStep {
+  id         String          @id @default(cuid())
+  revisionId String
+  revision   RevisionRequest @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  stepOrder    Int
+  role         String              // "검토", "승인"
+  approverName String             // 표시명 (결재자 비활성화 후에도 보존)
+  approverId   String?
+  status       ApprovalStepStatus @default(PENDING)
+  comment      String?
+  decidedAt    DateTime?
+
+  @@index([revisionId])
+  @@map("revision_approval_steps")
+}
+
+// ── 회람 ─────────────────────────────────────────────────────────────────────
+
+/// 문서 회람 (부서별 열람 확인)
+model Circulation {
+  id         String          @id @default(cuid())
+  documentId String
+  document   Document        @relation(fields: [documentId], references: [id])
+  versionId  String?
+  version    DocumentVersion? @relation(fields: [versionId], references: [id])
+
+  departmentId     String
+  department       Department @relation(fields: [departmentId], references: [id])
+  representativeId String?
+  representative   User?      @relation("CirculationRep", fields: [representativeId], references: [id])
+
+  status      CirculationStatus @default(PENDING)
+  readAt      DateTime?
+  confirmedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([documentId, departmentId, versionId])
+  @@index([documentId])
+  @@index([departmentId])
+  @@map("circulations")
+}
+
+// ── 교육훈련 ─────────────────────────────────────────────────────────────────
+
+/// 문서 관련 교육 이수 기록
+model TrainingRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+
+  completedAt DateTime
+  score       Int?    // 이해도 평가 점수 (0-100)
+  notes       String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, documentId])
+  @@index([userId])
+  @@index([documentId])
+  @@map("training_records")
+}
+
+// ── 감사 로그 ────────────────────────────────────────────────────────────────
+
+/// 시스템 전체 감사 로그 (변경 불가 append-only)
+model AuditLog {
+  id     String  @id @default(cuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  action     AuditAction
+  entityType String   // "Document", "User", "ApprovalRequest", "RevisionRequest"...
+  entityId   String?  // 대상 레코드 ID
+  description String?
+
+  oldValues Json?   // 변경 전 값 스냅샷
+  newValues  Json?  // 변경 후 값 스냅샷
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ── 알림 ─────────────────────────────────────────────────────────────────────
+
+/// 사용자 알림
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    NotificationType
+  title   String
+  message String  @db.Text
+
+  isRead  Boolean @default(false)
+  readAt  DateTime?
+
+  /// 관련 엔티티 (결재 요청, 개정 요청 등)
+  relatedId   String?
+  relatedType String?  // "ApprovalRequest", "RevisionRequest"...
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
