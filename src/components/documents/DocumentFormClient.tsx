@@ -12,6 +12,8 @@ import {
   type AccessLevel,
   type DocCategory,
 } from '@/lib/documentsData';
+import { getApprovalCandidates } from '@/lib/authUtils';
+import { USERS } from '@/lib/usersData';
 
 interface DocumentFormClientProps {
   mode: 'new' | 'edit';
@@ -19,7 +21,7 @@ interface DocumentFormClientProps {
   docId?: number;
 }
 
-const APPROVER_OPTIONS = ['이팀장', '최감사', '박대표', '김영훈', '이부서', '이연구'];
+const APPROVAL_CANDIDATES = getApprovalCandidates(USERS);
 const RETENTION_OPTIONS = ['1년', '3년', '5년', '10년', '영구'];
 const DEPT_OPTIONS = DEPARTMENTS.filter((d) => d.id !== 'D08');
 
@@ -127,9 +129,9 @@ export default function DocumentFormClient({ mode, initialData, docId }: Documen
     retentionPeriod: initialData?.retentionPeriod ?? '5년',
     effectiveDate:   initialData?.effectiveDate   ?? '',
     accessLevel:     (initialData?.accessLevel    ?? 'internal') as AccessLevel,
-    approver1:       'IT팀 팀장',
-    approver2:       '최감사',
-    approver3:       '박대표',
+    approver1:       APPROVAL_CANDIDATES[0]?.id ?? '',
+    approver2:       APPROVAL_CANDIDATES[1]?.id ?? '',
+    approver3:       APPROVAL_CANDIDATES[2]?.id ?? '',
   });
 
   /* 적용부서 체크박스 */
@@ -437,7 +439,9 @@ export default function DocumentFormClient({ mode, initialData, docId }: Documen
               </div>
               <select value={form.approver1} onChange={(e) => update('approver1', e.target.value)}
                 className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white mb-1">
-                {APPROVER_OPTIONS.map((a) => <option key={a}>{a}</option>)}
+                {APPROVAL_CANDIDATES.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.departmentName} · {u.position})</option>
+                ))}
               </select>
               <p className="text-[10px] text-gray-400">팀장 검토</p>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700 mt-2">검토</span>
@@ -454,7 +458,9 @@ export default function DocumentFormClient({ mode, initialData, docId }: Documen
               </div>
               <select value={form.approver2} onChange={(e) => update('approver2', e.target.value)}
                 className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white mb-1">
-                {APPROVER_OPTIONS.map((a) => <option key={a}>{a}</option>)}
+                {APPROVAL_CANDIDATES.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.departmentName} · {u.position})</option>
+                ))}
               </select>
               <p className="text-[10px] text-gray-400">품질 검토</p>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700 mt-2">검토</span>
@@ -471,7 +477,9 @@ export default function DocumentFormClient({ mode, initialData, docId }: Documen
               </div>
               <select value={form.approver3} onChange={(e) => update('approver3', e.target.value)}
                 className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white mb-1">
-                {APPROVER_OPTIONS.map((a) => <option key={a}>{a}</option>)}
+                {APPROVAL_CANDIDATES.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.departmentName} · {u.position})</option>
+                ))}
               </select>
               <p className="text-[10px] text-gray-400">최종 승인</p>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 mt-2">승인</span>

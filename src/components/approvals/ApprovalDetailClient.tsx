@@ -7,6 +7,8 @@ import ApprovalStatusBadge from '@/components/shared/ApprovalStatusBadge';
 import ApprovalStepTimeline from '@/components/shared/ApprovalStepTimeline';
 import ApprovalActionPanel, { type ActionResult } from '@/components/shared/ApprovalActionPanel';
 import { DUMMY_DOCUMENTS } from '@/lib/documentsData';
+import { useAuth } from '@/context/AuthContext';
+import { canApproveStep } from '@/lib/authUtils';
 
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -19,6 +21,7 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 
 export default function ApprovalDetailClient({ approvalId }: { approvalId: number }) {
   const router = useRouter();
+  const { currentUser } = useAuth();
   const item: ApprovalItem | undefined = APPROVAL_ITEMS.find((a) => a.id === approvalId);
 
   const [processed, setProcessed] = useState(false);
@@ -43,7 +46,12 @@ export default function ApprovalDetailClient({ approvalId }: { approvalId: numbe
     .map((id) => DUMMY_DOCUMENTS.find((d) => d.id === id))
     .filter(Boolean);
 
-  const canProcess = ['결재 대기', '검토 중', '보류'].includes(item.status) && !processed;
+  // 현재 결재 단계
+  const currentStep = item.steps[item.currentStepIndex];
+
+  // 결재 처리 가능 여부: 권한 + 본인이 결재자인 단계 + 미처리 상태
+  const statusAllowsProcess = ['결재 대기', '검토 중', '보류'].includes(item.status);
+  const canProcess = statusAllowsProcess && !processed && canApproveStep(currentUser, currentStep);
 
   const handleAction = async (action: ActionResult, comment: string) => {
     setIsProcessing(true);
@@ -226,8 +234,14 @@ export default function ApprovalDetailClient({ approvalId }: { approvalId: numbe
                 <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                <p className="text-xs">
-                  {processed ? '처리가 완료되었습니다' : '현재 처리 권한이 없습니다'}
+                <p className="text-xs font-medium text-gray-500">
+                  {processed
+                    ? '처리가 완료되었습니다'
+                    : !statusAllowsProcess
+                    ? '이미 완료된 결재입니다'
+                    : currentStep?.approverId && currentStep.approverId !== currentUser?.id
+                    ? `${currentStep.approver}님의 결재 차례입니다`
+                    : '결재 처리 권한이 없습니다'}
                 </p>
               </div>
             )}

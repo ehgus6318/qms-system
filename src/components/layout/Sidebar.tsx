@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { getMenuPermissions, isAdmin } from '@/lib/authUtils';
+import { ROLE_LABELS } from '@/lib/usersData';
 
 function IconDashboard() {
   return (
@@ -94,12 +97,8 @@ function IconChevronDown({ open }: { open: boolean }) {
 interface SubItem {
   id: string;
   label: string;
-}
-
-interface SubItem {
-  id: string;
-  label: string;
   path: string;
+  permKey?: string; // getMenuPermissions 결과에서 사용하는 키
 }
 
 interface MenuItem {
@@ -107,52 +106,78 @@ interface MenuItem {
   label: string;
   icon: React.ReactNode;
   path: string;
+  permKey?: string;
   children?: SubItem[];
 }
 
-const menuItems: MenuItem[] = [
-  { id: 'dashboard', label: '대시보드',  path: '/',           icon: <IconDashboard /> },
-  {
-    id: 'docs',
-    label: '문서관리',
-    path: '/documents',
-    icon: <IconFolder />,
-    children: [
-      { id: 'doc-list',     label: '문서목록',      path: '/documents' },
-      { id: 'doc-new',      label: '신규문서 등록', path: '/documents/new' },
-      { id: 'doc-approval', label: '결재문서함',    path: '/documents/approval' },
-      { id: 'doc-mine',     label: '내 문서함',     path: '/documents/my' },
-    ],
-  },
-  { id: 'revision',   label: '개정관리',   path: '/revisions',  icon: <IconRefresh /> },
-  { id: 'approval',   label: '승인관리',   path: '/approvals',  icon: <IconShield /> },
-  { id: 'training',   label: '교육훈련',   path: '/training',   icon: <IconBook /> },
-  { id: 'records',    label: '기록관리',   path: '/records',    icon: <IconClipboard /> },
-  { id: 'inspection', label: '검사',       path: '/inspection', icon: <IconSearch /> },
-  { id: 'reports',    label: '보고서',     path: '/reports',    icon: <IconChart /> },
-  { id: 'system',     label: '시스템관리', path: '/system',     icon: <IconCog /> },
-];
-
 export default function Sidebar() {
   const pathname = usePathname();
+  const { currentUser, logout } = useAuth();
+
+  const menuPerms = getMenuPermissions(currentUser);
+  const admin = isAdmin(currentUser);
+
+  // 권한에 따른 문서관리 서브메뉴 필터링
+  const docChildren: SubItem[] = [
+    { id: 'doc-list',     label: '문서목록',      path: '/documents',         permKey: 'documentView' },
+    { id: 'doc-new',      label: '신규문서 등록', path: '/documents/new',     permKey: 'documentCreate' },
+    { id: 'doc-approval', label: '결재문서함',    path: '/documents/approval', permKey: 'documentApprovalInbox' },
+    { id: 'doc-mine',     label: '내 문서함',     path: '/documents/my',      permKey: 'documentView' },
+  ].filter((item) => !item.permKey || menuPerms[item.permKey as keyof typeof menuPerms]);
+
+  const allMenuItems: (MenuItem & { show: boolean })[] = [
+    { id: 'dashboard',   label: '대시보드',   path: '/',           icon: <IconDashboard />, show: true },
+    {
+      id: 'docs',
+      label: '문서관리',
+      path: '/documents',
+      icon: <IconFolder />,
+      show: menuPerms.documentView,
+      children: docChildren,
+    },
+    { id: 'revision',   label: '개정관리',   path: '/revisions',  icon: <IconRefresh />,   show: menuPerms.revisionView },
+    { id: 'approval',   label: '승인관리',   path: '/approvals',  icon: <IconShield />,    show: menuPerms.approvalView },
+    { id: 'training',   label: '교육훈련',   path: '/training',   icon: <IconBook />,      show: menuPerms.trainingView },
+    { id: 'records',    label: '기록관리',   path: '/records',    icon: <IconClipboard />, show: menuPerms.recordsView },
+    { id: 'inspection', label: '검사',       path: '/inspection', icon: <IconSearch />,    show: menuPerms.recordsView },
+    { id: 'reports',    label: '보고서',     path: '/reports',    icon: <IconChart />,     show: menuPerms.reportsView },
+    {
+      id: 'system',
+      label: '시스템관리',
+      path: '/system/users',
+      icon: <IconCog />,
+      show: menuPerms.systemManage,
+      children: [
+        { id: 'sys-users', label: '사용자 관리', path: '/system/users', permKey: 'userManage' },
+      ].filter((item) => !item.permKey || menuPerms[item.permKey as keyof typeof menuPerms]),
+    },
+  ];
+
+  const menuItems = allMenuItems.filter((m) => m.show);
 
   /** 현재 경로에 맞게 초기 확장 항목 설정 */
   const getInitialExpanded = () => {
-    if (pathname.startsWith('/documents')) return ['docs'];
-    return [];
+    const expanded: string[] = [];
+    if (pathname.startsWith('/documents')) expanded.push('docs');
+    if (pathname.startsWith('/system'))    expanded.push('system');
+    return expanded;
   };
 
   const [expandedItems, setExpandedItems] = useState<string[]>(getInitialExpanded);
 
-  /** 경로 변경 시 관련 메뉴 자동 확장 */
   useEffect(() => {
     if (pathname.startsWith('/documents') && !expandedItems.includes('docs')) {
       setExpandedItems((prev) => [...prev, 'docs']);
+    }
+    if (pathname.startsWith('/system') && !expandedItems.includes('system')) {
+      setExpandedItems((prev) => [...prev, 'system']);
     }
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
+    // /system/users 는 /system 계열 전체를 커버
+    if (path === '/system/users') return pathname.startsWith('/system');
     return pathname === path || pathname.startsWith(path + '/');
   };
 
@@ -278,12 +303,19 @@ export default function Sidebar() {
       {/* User */}
       <div className="px-4 py-3 border-t border-[#253561]">
         <div className="flex items-center gap-2.5 mb-2">
-          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-xs font-bold">김</span>
+          <div className={`w-8 h-8 rounded-full ${currentUser?.avatarColor ?? 'bg-blue-500'} flex items-center justify-center flex-shrink-0`}>
+            <span className="text-white text-xs font-bold">{currentUser?.avatarInitials ?? '?'}</span>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-white text-sm font-medium leading-tight">김영훈</div>
-            <div className="text-slate-400 text-[10px] leading-tight">IT팀 / 관리자</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-white text-sm font-medium leading-tight">{currentUser?.name ?? '사용자'}</span>
+              {admin && (
+                <span className="px-1 py-px text-[8px] font-bold bg-red-500/30 text-red-300 rounded leading-none">ADMIN</span>
+              )}
+            </div>
+            <div className="text-slate-400 text-[10px] leading-tight">
+              {currentUser?.departmentName ?? ''} · {currentUser ? ROLE_LABELS[currentUser.role] : ''}
+            </div>
           </div>
         </div>
         <div className="flex items-center justify-between">
@@ -291,7 +323,10 @@ export default function Sidebar() {
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
             <span className="text-green-400 text-[10px]">온라인</span>
           </div>
-          <button className="text-[10px] text-slate-400 hover:text-white transition-colors">
+          <button
+            onClick={logout}
+            className="text-[10px] text-slate-400 hover:text-white transition-colors"
+          >
             로그아웃
           </button>
         </div>
