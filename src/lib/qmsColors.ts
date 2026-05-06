@@ -75,6 +75,48 @@ export const QMS_STATUS: Record<string, StatusStyle> = {
     bg: 'bg-blue-50',
     ring: 'ring-blue-200',
   },
+  보류: {
+    badge: 'bg-yellow-100 text-yellow-700 border border-yellow-200',
+    dot: 'bg-yellow-500',
+    text: 'text-yellow-700',
+    bg: 'bg-yellow-50',
+    ring: 'ring-yellow-200',
+  },
+  '개정 진행 중': {
+    badge: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+    dot: 'bg-indigo-500',
+    text: 'text-indigo-700',
+    bg: 'bg-indigo-50',
+    ring: 'ring-indigo-200',
+  },
+  '개정 완료': {
+    badge: 'bg-green-100 text-green-700 border border-green-200',
+    dot: 'bg-green-500',
+    text: 'text-green-700',
+    bg: 'bg-green-50',
+    ring: 'ring-green-200',
+  },
+  '개정 반려': {
+    badge: 'bg-red-100 text-red-700 border border-red-200',
+    dot: 'bg-red-500',
+    text: 'text-red-700',
+    bg: 'bg-red-50',
+    ring: 'ring-red-200',
+  },
+  완료: {
+    badge: 'bg-green-100 text-green-700 border border-green-200',
+    dot: 'bg-green-500',
+    text: 'text-green-700',
+    bg: 'bg-green-50',
+    ring: 'ring-green-200',
+  },
+  대기: {
+    badge: 'bg-gray-100 text-gray-500 border border-gray-200',
+    dot: 'bg-gray-400',
+    text: 'text-gray-500',
+    bg: 'bg-gray-50',
+    ring: 'ring-gray-200',
+  },
 };
 
 export function getStatusStyle(status: string): StatusStyle {
