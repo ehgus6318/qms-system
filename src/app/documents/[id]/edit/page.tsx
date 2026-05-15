@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: Props) {
   const { id } = await params;
   const doc = DUMMY_DOCUMENTS.find((d) => d.id === Number(id));
   return {
-    title: doc ? `QMS - ${doc.name} 수정` : 'QMS - 문서 수정',
+    title: doc ? `DMS - ${doc.name} 수정` : 'DMS - 문서 수정',
   };
 }
 
@@ -22,7 +22,7 @@ export default async function DocumentEditPage({ params }: Props) {
   return (
     <PageLayout
       title={doc ? `${doc.name} 수정` : '문서 수정'}
-      breadcrumb={`QMS 홈 > 문서관리 > ${doc?.name ?? '문서'} > 수정`}
+      breadcrumb={`DMS 홈 > 문서관리 > ${doc?.name ?? '문서'} > 수정`}
     >
       <DocumentFormClient
         mode="edit"

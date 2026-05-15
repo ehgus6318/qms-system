@@ -209,7 +209,7 @@ export const REVISION_ITEMS: RevisionItem[] = [
     reason: '업무 프로세스 변경',
     changeSummary: '전자결재 시스템 도입에 따른 문서 배포·관리 방법 업데이트',
     changeItems: [
-      { section: '4.1', type: 'modified', before: '문서는 종이 또는 전자 파일로 관리한다.', after: '문서는 QMS 전자결재 시스템을 통해 관리한다. 종이 출력본은 비공식 사본으로 간주한다.', description: '전자결재 시스템 기준으로 변경' },
+      { section: '4.1', type: 'modified', before: '문서는 종이 또는 전자 파일로 관리한다.', after: '문서는 DMS 전자결재 시스템을 통해 관리한다. 종이 출력본은 비공식 사본으로 간주한다.', description: '전자결재 시스템 기준으로 변경' },
       { section: '4.3', type: 'modified', before: '문서 배포는 관리본 스탬프를 날인한 출력본으로 한다.', after: '문서 배포는 시스템 내 전자 배포를 원칙으로 하며, 필요 시 "배포용" 워터마크 출력본을 사용한다.', description: '전자 배포 원칙으로 변경' },
       { section: '5.2', type: 'added',    after: '시스템 장애 시 비상 절차에 따라 종이 배포를 허용한다.', description: '비상 배포 절차 추가' },
     ],
@@ -235,7 +235,7 @@ export const REVISION_ITEMS: RevisionItem[] = [
   /* ── 개정 완료 ──────────────────────────────────────── */
   {
     id: 2005,
-    docId: 1, docNo: 'QMS-M-001', docName: '품질메뉴얼', docType: '품질메뉴얼',
+    docId: 1, docNo: 'QMS-M-001', docName: '품질메뉴얼', docType: '매뉴얼',
     currentVer: 'Rev.2', newVer: 'Rev.3',
     reason: '정기 개정',
     changeSummary: 'ISO 9001:2015 7.5조 요구사항 반영, 문서 보존 기간 명확화',
@@ -294,7 +294,7 @@ export const REVISION_ITEMS: RevisionItem[] = [
   /* ── 개정 반려 ──────────────────────────────────────── */
   {
     id: 2007,
-    docId: 17, docNo: 'QMS-IN-001', docName: '수입검사 기준서', docType: '검사기준서',
+    docId: 17, docNo: 'QMS-IN-001', docName: '수입검사 기준서', docType: '운영문서',
     currentVer: 'Rev.0', newVer: 'Rev.1',
     reason: '심사 지적사항 반영',
     changeSummary: 'AQL 기준 개정 및 수입검사 절차 현행화',

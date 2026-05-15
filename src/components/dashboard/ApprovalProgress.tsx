@@ -1,11 +1,11 @@
 import { getStatusStyle } from '@/lib/qmsColors';
 
 const approvals = [
-  { name: '품질메뉴얼 개정 (Rev.4)',         no: 'QMS-M-001',  author: '김영훈', date: '2024-05-21', status: '결재 대기' },
-  { name: '프로세스 관리 절차 (Rev.3)',       no: 'QMS-P-001',  author: '이부서', date: '2024-05-21', status: '검토 중' },
-  { name: '내부심사지침서 (Rev.2)',           no: 'QMS-I-001',  author: '최감사', date: '2024-05-20', status: '결재 대기' },
-  { name: '제품 감사 작업표준서 (Rev.2)',     no: 'QMS-WI-001', author: '박작업', date: '2024-05-19', status: '승인 대기' },
-  { name: '수입검사 기준서 (Rev.2)',          no: 'QMS-IN-001', author: '최감사', date: '2024-05-19', status: '반려' },
+  { name: '매뉴얼 개정 (Rev.4)',              no: 'DOC-M-001',  author: '김영훈', date: '2024-05-21', status: '결재 대기' },
+  { name: '프로세스 관리 절차 (Rev.3)',       no: 'DOC-P-001',  author: '이수진', date: '2024-05-21', status: '검토 중' },
+  { name: '내부심사지침서 (Rev.2)',           no: 'DOC-I-001',  author: '박준혁', date: '2024-05-20', status: '결재 대기' },
+  { name: '제품 운영 작업표준서 (Rev.2)',     no: 'DOC-WI-001', author: '한상우', date: '2024-05-19', status: '승인 대기' },
+  { name: '수입검사 지침서 (Rev.2)',          no: 'DOC-IN-001', author: '최민지', date: '2024-05-19', status: '반려' },
 ];
 
 export default function ApprovalProgress() {

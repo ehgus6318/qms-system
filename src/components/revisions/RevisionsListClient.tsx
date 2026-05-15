@@ -112,9 +112,21 @@ function RevisionRow({ item, onClick }: { item: RevisionItem; onClick: () => voi
   );
 }
 
-export default function RevisionsListClient() {
+interface RevisionsListClientProps {
+  initialStatus?: string;
+}
+
+const INITIAL_STATUS_MAP: Record<string, TabId> = {
+  '진행중': '개정 진행 중',
+  '완료':   '개정 완료',
+  '이력':   '전체',
+};
+
+export default function RevisionsListClient({ initialStatus }: RevisionsListClientProps = {}) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabId>('전체');
+  const [activeTab, setActiveTab] = useState<TabId>(
+    initialStatus ? (INITIAL_STATUS_MAP[initialStatus] ?? '개정 대기') : '개정 대기'
+  );
   const [search, setSearch] = useState('');
   const [reasonFilter, setReasonFilter] = useState('전체');
 

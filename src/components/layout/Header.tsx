@@ -13,7 +13,7 @@ interface HeaderProps {
 
 export default function Header({
   title = '대시보드',
-  breadcrumb = 'QMS 홈 > 대시보드',
+  breadcrumb = 'DMS 홈 > 대시보드',
 }: HeaderProps) {
   const router = useRouter();
   const { currentUser, logout } = useAuth();

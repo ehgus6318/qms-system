@@ -621,6 +621,98 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ── 마스터 관리 ──────────────────────────────────────────────────────────────
+
+/// 문서유형 마스터
+model DocumentType {
+  id          String  @id @default(cuid())
+  code        String  @unique   // 예: MANUAL, PROC, WI, FORM
+  name        String            // 예: 매뉴얼, 절차서, 작업지침서, 서식
+  description String?
+  prefix      String?           // 문서번호 앞자리: MAN, PROC, WI
+  order       Int     @default(0)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("document_types")
+}
+
+/// 공통코드 그룹
+model CommonCodeGroup {
+  id          String  @id @default(cuid())
+  code        String  @unique   // 예: SECURITY_LEVEL, POSITION, DOC_STATUS
+  name        String            // 예: 보안등급, 직급, 문서상태
+  description String?
+  isSystem    Boolean @default(false)  // 시스템 예약 그룹 (삭제 불가)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  codes CommonCode[]
+
+  @@map("common_code_groups")
+}
+
+/// 공통코드 값
+model CommonCode {
+  id      String          @id @default(cuid())
+  groupId String
+  group   CommonCodeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  code        String   // 예: CONFIDENTIAL, PUBLIC
+  name        String   // 예: 기밀, 공개
+  description String?
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  extra       Json?    // 추가 메타 (색상 코드, 아이콘 등)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, code])
+  @@index([groupId])
+  @@map("common_codes")
+}
+
+/// 결재 템플릿 (기본 결재선 설정)
+model ApprovalTemplate {
+  id                 String  @id @default(cuid())
+  name               String  // 예: 기본 결재, 긴급 결재
+  description        String?
+  isDefault          Boolean @default(false)
+  allowFreeSelection Boolean @default(true)   // 결재선 자유 선택 허용
+  allowSelfApproval  Boolean @default(false)  // 본인 결재 허용
+  isActive           Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  steps ApprovalTemplateStep[]
+
+  @@map("approval_templates")
+}
+
+/// 결재 템플릿 단계
+model ApprovalTemplateStep {
+  id         String           @id @default(cuid())
+  templateId String
+  template   ApprovalTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  stepOrder     Int             // 1, 2, 3
+  role          String          // 예: 팀장 검토, 품질 검토, 최종 승인
+  assigneeType  String          @default("FREE") // FREE 자유, FIXED 고정, DEPT_HEAD 부서장
+  assigneeId    String?         // FIXED일 때 사용자 ID
+  isRequired    Boolean         @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([templateId])
+  @@map("approval_template_steps")
+}
+
 // ── 알림 ─────────────────────────────────────────────────────────────────────
 
 /// 사용자 알림

@@ -76,6 +76,12 @@ export type {
   TrainingRecord,
   AuditLog,
   Notification,
+  // 마스터 관리
+  DocumentType,
+  CommonCodeGroup,
+  CommonCode,
+  ApprovalTemplate,
+  ApprovalTemplateStep,
   // Enums
   UserStatus,
   UserRole,

@@ -10,8 +10,8 @@ export async function generateMetadata({ params }: Props) {
   const { id } = await params;
   const doc = DUMMY_DOCUMENTS.find((d) => d.id === Number(id));
   return {
-    title: doc ? `QMS - ${doc.name}` : 'QMS - 문서 상세',
-    description: doc?.description ?? '품질관리 문서 상세 조회',
+    title: doc ? `DMS - ${doc.name}` : 'DMS - 문서 상세',
+    description: doc?.description ?? '문서 상세 조회',
   };
 }
 
@@ -21,8 +21,8 @@ export default async function DocumentDetailPage({ params }: Props) {
   const doc = DUMMY_DOCUMENTS.find((d) => d.id === docId);
 
   const breadcrumb = doc
-    ? `QMS 홈 > 문서관리 > 문서 목록 > ${doc.name}`
-    : 'QMS 홈 > 문서관리 > 문서 상세';
+    ? `DMS 홈 > 문서관리 > 전체 문서 >${doc.name}`
+    : 'DMS 홈 > 문서관리 > 문서 상세';
 
   return (
     <PageLayout

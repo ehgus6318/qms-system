@@ -7,6 +7,8 @@ import { useAuth } from '@/context/AuthContext';
 import { getMenuPermissions, isAdmin } from '@/lib/authUtils';
 import { ROLE_LABELS } from '@/lib/usersData';
 
+// ── 아이콘 ──────────────────────────────────────────────────────────────────
+
 function IconDashboard() {
   return (
     <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -23,14 +25,6 @@ function IconFolder() {
   );
 }
 
-function IconRefresh() {
-  return (
-    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-    </svg>
-  );
-}
-
 function IconShield() {
   return (
     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
@@ -39,34 +33,26 @@ function IconShield() {
   );
 }
 
-function IconBook() {
+function IconRefresh() {
   return (
     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
     </svg>
   );
 }
 
-function IconClipboard() {
+function IconTag() {
   return (
     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
     </svg>
   );
 }
 
-function IconSearch() {
+function IconUsers() {
   return (
     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-    </svg>
-  );
-}
-
-function IconChart() {
-  return (
-    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   );
 }
@@ -94,11 +80,14 @@ function IconChevronDown({ open }: { open: boolean }) {
   );
 }
 
+// ── 타입 ────────────────────────────────────────────────────────────────────
+
 interface SubItem {
   id: string;
   label: string;
   path: string;
-  permKey?: string; // getMenuPermissions 결과에서 사용하는 키
+  badge?: number;
+  permKey?: string;
 }
 
 interface MenuItem {
@@ -110,80 +99,188 @@ interface MenuItem {
   children?: SubItem[];
 }
 
+// ── 메인 컴포넌트 ──────────────────────────────────────────────────────────
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { currentUser, logout } = useAuth();
 
   const menuPerms = getMenuPermissions(currentUser);
-  const admin = isAdmin(currentUser);
+  const admin = !!currentUser?.isAdmin;
 
-  // 권한에 따른 문서관리 서브메뉴 필터링
+  // ── 문서관리 서브메뉴 ──────────────────────────────────────────────────
+  // 모든 활성 사용자는 신규 등록 포함 문서관리 전체 메뉴 이용 가능
   const docChildren: SubItem[] = [
-    { id: 'doc-list',     label: '문서목록',      path: '/documents',         permKey: 'documentView' },
-    { id: 'doc-new',      label: '신규문서 등록', path: '/documents/new',     permKey: 'documentCreate' },
-    { id: 'doc-approval', label: '결재문서함',    path: '/documents/approval', permKey: 'documentApprovalInbox' },
-    { id: 'doc-mine',     label: '내 문서함',     path: '/documents/my',      permKey: 'documentView' },
-  ].filter((item) => !item.permKey || menuPerms[item.permKey as keyof typeof menuPerms]);
+    { id: 'doc-list',      label: '전체 문서',      path: '/documents' },
+    { id: 'doc-new',       label: '신규 문서 등록', path: '/documents/new' },
+    { id: 'doc-mine',      label: '내 문서함',      path: '/documents/my' },
+    { id: 'doc-favorites', label: '즐겨찾기',       path: '/documents/favorites' },
+    { id: 'doc-trash',     label: '휴지통',         path: '/documents/trash' },
+  ];
 
+  // ── 결재관리 서브메뉴 ──────────────────────────────────────────────────
+  const approvalChildren: SubItem[] = [
+    { id: 'apv-waiting',   label: '결재 대기',  path: '/approvals',           badge: 7 },
+    { id: 'apv-requested', label: '요청 문서',  path: '/approvals/requested' },
+    { id: 'apv-history',   label: '승인 이력',  path: '/approvals/history' },
+  ];
+
+  // ── 개정관리 서브메뉴 ──────────────────────────────────────────────────
+  const revisionChildren: SubItem[] = [
+    { id: 'rev-pending',      label: '개정 대기',   path: '/revisions',              badge: 5 },
+    { id: 'rev-in-progress',  label: '개정 진행중', path: '/revisions/in-progress' },
+    { id: 'rev-completed',    label: '개정 완료',   path: '/revisions/completed' },
+    { id: 'rev-history',      label: '개정 이력',   path: '/revisions/history' },
+  ];
+
+  // ── 문서분류 서브메뉴 ──────────────────────────────────────────────────
+  const categoryChildren: SubItem[] = [
+    { id: 'cat-manage',  label: '문서 분류 관리', path: '/categories' },
+    { id: 'cat-folders', label: '폴더 관리',      path: '/categories/folders' },
+  ];
+
+  // ── 사용자관리 서브메뉴 ───────────────────────────────────────────────
+  const userChildren: SubItem[] = [
+    { id: 'usr-list',  label: '사용자 목록', path: '/system/users' },
+    { id: 'usr-perms', label: '권한 관리',   path: '/system/permissions' },
+  ];
+
+  // ── 시스템설정 서브메뉴 ───────────────────────────────────────────────
+  const settingsChildren: SubItem[] = [
+    { id: 'sys-orgs',    label: '조직 관리',     path: '/system/organizations' },
+    { id: 'sys-dtypes',  label: '문서유형 관리', path: '/system/document-types' },
+    { id: 'sys-dcats',   label: '문서분류 관리', path: '/system/document-categories' },
+    { id: 'sys-codes',   label: '공통코드 관리', path: '/system/common-codes' },
+    { id: 'sys-apv',     label: '결재설정',       path: '/system/approval-settings' },
+  ];
+
+  // ── 전체 메뉴 정의 ────────────────────────────────────────────────────
   const allMenuItems: (MenuItem & { show: boolean })[] = [
-    { id: 'dashboard',   label: '대시보드',   path: '/',           icon: <IconDashboard />, show: true },
+    {
+      id: 'dashboard',
+      label: '대시보드',
+      path: '/',
+      icon: <IconDashboard />,
+      show: true,
+    },
     {
       id: 'docs',
       label: '문서관리',
       path: '/documents',
       icon: <IconFolder />,
-      show: menuPerms.documentView,
+      show: !!currentUser?.isActive,
       children: docChildren,
     },
-    { id: 'revision',   label: '개정관리',   path: '/revisions',  icon: <IconRefresh />,   show: menuPerms.revisionView },
-    { id: 'approval',   label: '승인관리',   path: '/approvals',  icon: <IconShield />,    show: menuPerms.approvalView },
-    { id: 'training',   label: '교육훈련',   path: '/training',   icon: <IconBook />,      show: menuPerms.trainingView },
-    { id: 'records',    label: '기록관리',   path: '/records',    icon: <IconClipboard />, show: menuPerms.recordsView },
-    { id: 'inspection', label: '검사',       path: '/inspection', icon: <IconSearch />,    show: menuPerms.recordsView },
-    { id: 'reports',    label: '보고서',     path: '/reports',    icon: <IconChart />,     show: menuPerms.reportsView },
     {
-      id: 'system',
-      label: '시스템관리',
+      id: 'approval',
+      label: '결재관리',
+      path: '/approvals',
+      icon: <IconShield />,
+      show: !!currentUser?.isActive,
+      children: approvalChildren,
+    },
+    {
+      id: 'revision',
+      label: '개정관리',
+      path: '/revisions',
+      icon: <IconRefresh />,
+      show: !!currentUser?.isActive,
+      children: revisionChildren,
+    },
+    {
+      id: 'categories',
+      label: '문서분류',
+      path: '/categories',
+      icon: <IconTag />,
+      show: !!currentUser?.isAdmin,
+      children: categoryChildren,
+    },
+    {
+      id: 'users',
+      label: '사용자관리',
       path: '/system/users',
+      icon: <IconUsers />,
+      show: !!currentUser?.isAdmin,
+      children: userChildren,
+    },
+    {
+      id: 'settings',
+      label: '시스템설정',
+      path: '/system/settings',
       icon: <IconCog />,
-      show: menuPerms.systemManage,
-      children: [
-        { id: 'sys-users', label: '사용자 관리', path: '/system/users', permKey: 'userManage' },
-      ].filter((item) => !item.permKey || menuPerms[item.permKey as keyof typeof menuPerms]),
+      show: !!currentUser?.isAdmin,
+      children: settingsChildren,
     },
   ];
 
   const menuItems = allMenuItems.filter((m) => m.show);
 
-  /** 현재 경로에 맞게 초기 확장 항목 설정 */
+  // ── 초기 확장 그룹 ───────────────────────────────────────────────────
   const getInitialExpanded = () => {
     const expanded: string[] = [];
-    if (pathname.startsWith('/documents')) expanded.push('docs');
-    if (pathname.startsWith('/system'))    expanded.push('system');
+    if (pathname.startsWith('/documents'))  expanded.push('docs');
+    if (pathname.startsWith('/approvals'))  expanded.push('approval');
+    if (pathname.startsWith('/revisions'))  expanded.push('revision');
+    if (pathname.startsWith('/categories')) expanded.push('categories');
+    if (pathname.startsWith('/system/users') || pathname.startsWith('/system/permissions')) {
+      expanded.push('users');
+    }
+    if (
+      pathname.startsWith('/system/organizations') ||
+      pathname.startsWith('/system/document-types') ||
+      pathname.startsWith('/system/document-categories') ||
+      pathname.startsWith('/system/common-codes') ||
+      pathname.startsWith('/system/approval-settings') ||
+      pathname === '/system/settings'
+    ) {
+      expanded.push('settings');
+    }
     return expanded;
   };
 
   const [expandedItems, setExpandedItems] = useState<string[]>(getInitialExpanded);
 
   useEffect(() => {
-    if (pathname.startsWith('/documents') && !expandedItems.includes('docs')) {
-      setExpandedItems((prev) => [...prev, 'docs']);
+    const autoExpand = (prefix: string, id: string) => {
+      if (pathname.startsWith(prefix)) {
+        setExpandedItems((prev) => prev.includes(id) ? prev : [...prev, id]);
+      }
+    };
+    autoExpand('/documents', 'docs');
+    autoExpand('/approvals', 'approval');
+    autoExpand('/revisions', 'revision');
+    autoExpand('/categories', 'categories');
+    if (pathname.startsWith('/system/users') || pathname.startsWith('/system/permissions')) {
+      setExpandedItems((prev) => prev.includes('users') ? prev : [...prev, 'users']);
     }
-    if (pathname.startsWith('/system') && !expandedItems.includes('system')) {
-      setExpandedItems((prev) => [...prev, 'system']);
+    if (
+      pathname.startsWith('/system/organizations') ||
+      pathname.startsWith('/system/document-types') ||
+      pathname.startsWith('/system/document-categories') ||
+      pathname.startsWith('/system/common-codes') ||
+      pathname.startsWith('/system/approval-settings') ||
+      pathname === '/system/settings'
+    ) {
+      setExpandedItems((prev) => prev.includes('settings') ? prev : [...prev, 'settings']);
     }
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Active 판단 ──────────────────────────────────────────────────────
+  /** 그룹 레벨: 접두사 매칭 */
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
-    // /system/users 는 /system 계열 전체를 커버
-    if (path === '/system/users') return pathname.startsWith('/system');
     return pathname === path || pathname.startsWith(path + '/');
   };
 
+  /** 자식 아이템: 정확한 경로 매칭 */
+  const isChildActive = (childPath: string) => {
+    if (childPath === '/') return pathname === '/';
+    return pathname === childPath;
+  };
+
   const isGroupActive = (item: MenuItem) => {
-    if (isActive(item.path)) return true;
-    return item.children?.some((c) => isActive(c.path)) ?? false;
+    if (!item.children) return isActive(item.path);
+    return isActive(item.path) || (item.children?.some((c) => isActive(c.path)) ?? false);
   };
 
   const toggleExpand = (id: string) => {
@@ -198,22 +295,23 @@ export default function Sidebar() {
 
   return (
     <aside className="w-[220px] flex-shrink-0 bg-[#1a2744] flex flex-col h-full overflow-hidden">
-      {/* Logo */}
+
+      {/* ── 로고 ────────────────────────────────────────────────────── */}
       <div className="px-4 py-4 border-b border-[#253561]">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-blue-500 rounded-md flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
           <div>
-            <div className="text-white font-bold text-sm leading-tight">QMS</div>
-            <div className="text-blue-300 text-[10px] leading-tight">품질관리시스템</div>
+            <div className="text-white font-bold text-sm leading-tight">DMS</div>
+            <div className="text-blue-300 text-[10px] leading-tight">전자문서관리시스템</div>
           </div>
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* ── 네비게이션 ─────────────────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto scrollbar-hide py-2">
         {menuItems.map((item) => {
           const isExpanded = expandedItems.includes(item.id);
@@ -253,23 +351,29 @@ export default function Sidebar() {
                 </Link>
               )}
 
+              {/* 서브메뉴 */}
               {hasChildren && isExpanded && (
                 <div className="bg-[#111d30]">
                   {item.children!.map((child) => {
-                    const childActive = isActive(child.path);
+                    const childActive = isChildActive(child.path);
                     return (
                       <Link
                         key={child.id}
                         href={child.path}
                         className={[
-                          'flex items-center gap-2 py-2 pl-[52px] pr-4 transition-all duration-150',
+                          'flex items-center gap-2 py-2 pl-[46px] pr-4 transition-all duration-150',
                           childActive
                             ? 'text-blue-300 bg-[#1a2c4a] border-l-[3px] border-blue-400'
                             : 'text-slate-400 hover:text-blue-300 hover:bg-[#1a2c4a] border-l-[3px] border-transparent',
                         ].join(' ')}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${childActive ? 'bg-blue-400' : 'bg-slate-600'}`} />
-                        <span className="text-[11px] font-medium">{child.label}</span>
+                        <span className="flex-1 text-[11px] font-medium">{child.label}</span>
+                        {child.badge !== undefined && (
+                          <span className="min-w-[18px] h-[18px] px-1 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                            {child.badge}
+                          </span>
+                        )}
                       </Link>
                     );
                   })}
@@ -280,7 +384,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Storage */}
+      {/* ── 저장공간 ─────────────────────────────────────────────────── */}
       <div className="px-4 py-3 border-t border-[#253561]">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs text-slate-400 font-medium">저장공간</span>
@@ -300,7 +404,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* User */}
+      {/* ── 사용자 정보 ───────────────────────────────────────────────── */}
       <div className="px-4 py-3 border-t border-[#253561]">
         <div className="flex items-center gap-2.5 mb-2">
           <div className={`w-8 h-8 rounded-full ${currentUser?.avatarColor ?? 'bg-blue-500'} flex items-center justify-center flex-shrink-0`}>
@@ -333,7 +437,7 @@ export default function Sidebar() {
       </div>
 
       <div className="px-4 py-2 border-t border-[#253561]">
-        <p className="text-[9px] text-slate-500 text-center">© 2024 DH2 Co., Ltd.</p>
+        <p className="text-[9px] text-slate-500 text-center">© 2025 DH2 Co., Ltd.</p>
       </div>
     </aside>
   );

@@ -129,8 +129,8 @@ export interface CirculationItem {
 // ──────────────────────────────────────────────────────────────────────────
 
 export const DOC_TYPES = [
-  '전체', '품질메뉴얼', '프로세스', '절차서', '지침서',
-  '작업표준서', '검사기준서', '기록문서', '외부문서',
+  '전체', '매뉴얼', '프로세스', '절차서', '지침서',
+  '운영문서', '서식', '기록문서', '외부문서',
 ] as const;
 
 export const DOC_STATUSES = ['전체', '승인', '검토 중', '반려', '초안'] as const;
@@ -162,18 +162,18 @@ export const DEPARTMENTS: Department[] = [
 
 export const DOC_CATEGORIES: DocCategory[] = [
   {
-    id: 'C1', label: '품질문서', children: [
-      { id: 'C1-1', label: '품질메뉴얼',   parentId: 'C1' },
-      { id: 'C1-2', label: '프로세스',     parentId: 'C1' },
-      { id: 'C1-3', label: '절차서',       parentId: 'C1' },
-      { id: 'C1-4', label: '지침서',       parentId: 'C1' },
+    id: 'C1', label: '관리문서', children: [
+      { id: 'C1-1', label: '매뉴얼',   parentId: 'C1' },
+      { id: 'C1-2', label: '프로세스', parentId: 'C1' },
+      { id: 'C1-3', label: '절차서',   parentId: 'C1' },
+      { id: 'C1-4', label: '지침서',   parentId: 'C1' },
     ],
   },
   {
-    id: 'C2', label: '생산문서', children: [
-      { id: 'C2-1', label: '작업표준서',   parentId: 'C2' },
-      { id: 'C2-2', label: '검사기준서',   parentId: 'C2' },
-      { id: 'C2-3', label: '공정관리기준', parentId: 'C2' },
+    id: 'C2', label: '운영문서', children: [
+      { id: 'C2-1', label: '운영문서',   parentId: 'C2' },
+      { id: 'C2-2', label: '서식',       parentId: 'C2' },
+      { id: 'C2-3', label: '공정기준',   parentId: 'C2' },
     ],
   },
   {
@@ -197,9 +197,9 @@ export const DOC_CATEGORIES: DocCategory[] = [
 // ──────────────────────────────────────────────────────────────────────────
 
 export const DUMMY_DOCUMENTS: Document[] = [
-  /* ─ 품질메뉴얼 ─ */
+  /* ─ 매뉴얼 ─ */
   {
-    id: 1, no: 'QMS-M-001', name: '품질메뉴얼', type: '품질메뉴얼', categoryId: 'C1-1',
+    id: 1, no: 'DOC-M-001', name: '경영 매뉴얼', type: '매뉴얼', categoryId: 'C1-1',
     ver: 'Rev.3', status: '승인', accessLevel: 'internal', author: '김영훈', dept: 'IT팀',
     date: '2024-05-20', description: 'ISO 9001 기반 통합 품질 메뉴얼', fileSize: '2.4 MB',
     keywords: ['ISO9001', '품질방침', '품질목표'],
@@ -217,7 +217,7 @@ export const DUMMY_DOCUMENTS: Document[] = [
     ],
   },
   {
-    id: 2, no: 'QMS-M-002', name: '품질방침 및 목표', type: '품질메뉴얼', categoryId: 'C1-1',
+    id: 2, no: 'QMS-M-002', name: '품질방침 및 목표', type: '매뉴얼', categoryId: 'C1-1',
     ver: 'Rev.2', status: '승인', accessLevel: 'internal', author: '이부서', dept: '관리팀',
     date: '2024-04-15', description: '연간 품질 방침 및 목표 수립 문서', fileSize: '1.1 MB',
     retentionPeriod: '5년', relatedStandard: 'ISO 9001:2015 6.2',
@@ -358,7 +358,7 @@ export const DUMMY_DOCUMENTS: Document[] = [
   },
   /* ─ 작업표준서 ─ */
   {
-    id: 14, no: 'QMS-WI-001', name: '제품 감사 작업표준서', type: '작업표준서', categoryId: 'C2-1',
+    id: 14, no: 'QMS-WI-001', name: '제품 감사 작업표준서', type: '운영문서', categoryId: 'C2-1',
     ver: 'Rev.2', status: '승인', accessLevel: 'internal', author: '박작업', dept: '생산팀',
     date: '2024-05-09', description: '완성품 감사 기준 및 방법 표준서', fileSize: '3.1 MB',
     retentionPeriod: '5년',
@@ -369,7 +369,7 @@ export const DUMMY_DOCUMENTS: Document[] = [
     circulationList: [],
   },
   {
-    id: 15, no: 'QMS-WI-002', name: '용접 작업 표준서', type: '작업표준서', categoryId: 'C2-1',
+    id: 15, no: 'QMS-WI-002', name: '용접 작업 표준서', type: '운영문서', categoryId: 'C2-1',
     ver: 'Rev.3', status: '승인', accessLevel: 'internal', author: '이부서', dept: '관리팀',
     date: '2024-04-28', description: '용접 공정 작업 방법 및 검사 기준', fileSize: '2.7 MB',
     retentionPeriod: '5년',
@@ -377,7 +377,7 @@ export const DUMMY_DOCUMENTS: Document[] = [
     circulationList: [],
   },
   {
-    id: 16, no: 'QMS-WI-003', name: '도장 공정 작업표준서', type: '작업표준서', categoryId: 'C2-1',
+    id: 16, no: 'QMS-WI-003', name: '도장 공정 작업표준서', type: '운영문서', categoryId: 'C2-1',
     ver: 'Rev.1', status: '초안', accessLevel: 'internal', author: '홍길동', dept: '생산팀',
     date: '2024-05-06', description: '도장 공정 조건 및 품질 기준 표준서', fileSize: '1.9 MB',
     retentionPeriod: '5년',
@@ -386,7 +386,7 @@ export const DUMMY_DOCUMENTS: Document[] = [
   },
   /* ─ 검사기준서 ─ */
   {
-    id: 17, no: 'QMS-IN-001', name: '수입검사 기준서', type: '검사기준서', categoryId: 'C2-2',
+    id: 17, no: 'QMS-IN-001', name: '수입검사 기준서', type: '운영문서', categoryId: 'C2-2',
     ver: 'Rev.1', status: '반려', accessLevel: 'internal', author: '최감사', dept: '품질팀',
     date: '2024-05-08', description: '원자재·부품 수입 검사 기준 및 절차', fileSize: '1.0 MB',
     retentionPeriod: '5년',
@@ -394,7 +394,7 @@ export const DUMMY_DOCUMENTS: Document[] = [
     circulationList: [],
   },
   {
-    id: 18, no: 'QMS-IN-002', name: '공정검사 기준서', type: '검사기준서', categoryId: 'C2-2',
+    id: 18, no: 'QMS-IN-002', name: '공정검사 기준서', type: '운영문서', categoryId: 'C2-2',
     ver: 'Rev.2', status: '승인', accessLevel: 'internal', author: '박작업', dept: '생산팀',
     date: '2024-04-17', description: '공정별 품질 검사 기준 및 샘플링 방법', fileSize: '1.6 MB',
     retentionPeriod: '5년',
@@ -405,7 +405,7 @@ export const DUMMY_DOCUMENTS: Document[] = [
     circulationList: [],
   },
   {
-    id: 19, no: 'QMS-IN-003', name: '완제품 검사 기준서', type: '검사기준서', categoryId: 'C2-2',
+    id: 19, no: 'QMS-IN-003', name: '완제품 검사 기준서', type: '운영문서', categoryId: 'C2-2',
     ver: 'Rev.2', status: '검토 중', accessLevel: 'internal', author: '최감사', dept: '품질팀',
     date: '2024-05-14', description: '완제품 최종 검사 항목 및 합부 기준', fileSize: '2.2 MB',
     retentionPeriod: '5년',

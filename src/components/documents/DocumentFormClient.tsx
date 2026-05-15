@@ -189,7 +189,7 @@ export default function DocumentFormClient({ mode, initialData, docId }: Documen
           <div>
             <FieldLabel required>문서번호</FieldLabel>
             <input type="text" required value={form.no} onChange={(e) => update('no', e.target.value)}
-              placeholder="예: QMS-S-005" className={inputCls} />
+              placeholder="예: DOC-S-005" className={inputCls} />
           </div>
 
           {/* 문서유형 */}

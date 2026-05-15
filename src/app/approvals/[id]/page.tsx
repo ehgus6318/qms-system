@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: Props) {
   const { id } = await params;
   const item = APPROVAL_ITEMS.find((a) => a.id === Number(id));
   return {
-    title: item ? `QMS - ${item.docName} 결재` : 'QMS - 결재 상세',
+    title: item ? `DMS - ${item.docName} 결재` : 'DMS - 결재 상세',
     description: item?.requestComment ?? '결재 상세 처리',
   };
 }
@@ -23,7 +23,7 @@ export default async function ApprovalDetailPage({ params }: Props) {
   return (
     <PageLayout
       title={item ? `결재 처리: ${item.docName}` : '결재 상세'}
-      breadcrumb={`QMS 홈 > 승인관리 > ${item?.docName ?? '상세'}`}
+      breadcrumb={`DMS 홈 > 결재관리 > ${item?.docName ?? '상세'}`}
     >
       <ApprovalDetailClient approvalId={approvalId} />
     </PageLayout>

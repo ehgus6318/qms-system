@@ -143,9 +143,22 @@ function ApprovalRow({ item, onClick }: { item: ApprovalItem; onClick: () => voi
 }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-export default function ApprovalsListClient() {
+interface ApprovalsListClientProps {
+  initialTab?: 'waiting' | 'requested' | 'history';
+}
+
+// initialTab 매핑: URL 파라미터 → 탭 레이블
+const INITIAL_TAB_MAP: Record<string, TabId> = {
+  waiting:   '결재 대기',
+  requested: '전체',       // 요청 문서는 전체 표시 후 필터
+  history:   '승인',       // 승인 이력은 승인된 건 표시
+};
+
+export default function ApprovalsListClient({ initialTab }: ApprovalsListClientProps = {}) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabId>('전체');
+  const [activeTab, setActiveTab] = useState<TabId>(
+    initialTab ? (INITIAL_TAB_MAP[initialTab] ?? '전체') : '전체'
+  );
   const [search, setSearch] = useState('');
   const [items, setItems] = useState(APPROVAL_ITEMS);
 

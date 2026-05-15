@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QMS - 품질관리시스템",
-  description: "Quality Management System / Document Control Center",
+  title: "DMS - 전자문서관리시스템",
+  description: "Document Management System / Document Control Center",
 };
 
 export default function RootLayout({

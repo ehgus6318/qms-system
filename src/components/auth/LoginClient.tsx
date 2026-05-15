@@ -2,7 +2,7 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // src/components/auth/LoginClient.tsx
-// 기업용 QMS 로그인 화면 (Mock Auth)
+// 기업용 DMS 로그인 화면 (Mock Auth)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from 'react';
@@ -73,8 +73,8 @@ export default function LoginClient() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">QMS 품질관리시스템</h1>
-          <p className="text-blue-300/70 text-sm mt-1">Document Control Center</p>
+          <h1 className="text-2xl font-bold text-white">DMS 전자문서관리시스템</h1>
+          <p className="text-blue-300/70 text-sm mt-1">Document Management System</p>
         </div>
 
         {/* 로그인 카드 */}
@@ -225,7 +225,7 @@ export default function LoginClient() {
 
         {/* 푸터 */}
         <p className="text-center text-[11px] text-white/20 mt-6">
-          © 2024 DH2 Co., Ltd. · QMS v2.0
+          © 2025 DH2 Co., Ltd. · DMS v1.0
         </p>
       </div>
     </div>

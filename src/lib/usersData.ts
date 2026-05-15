@@ -33,9 +33,11 @@ export interface User {
   departmentId: string;
   departmentName: string;
   position: string;       // 직급 (예: 사원, 대리, 과장, 부장)
-  jobTitle: string;       // 직책 (예: QMS 관리자, 팀장)
+  jobTitle: string;       // 직책 (예: DMS 관리자, 팀장)
   role: UserRole;
   isActive: boolean;
+  isAdmin: boolean;         // 관리자 권한 (문서분류·사용자·시스템 설정 접근)
+  canSelfApprove: boolean;  // 본인 작성 문서 본인 결재 허용
   permissions: Permission[];
   avatarInitials: string;
   avatarColor: string;    // Tailwind bg 클래스
@@ -56,7 +58,7 @@ export interface PermissionMeta {
 export type PermissionGroup =
   | '문서관리'
   | '개정관리'
-  | '승인관리'
+  | '결재관리'
   | '교육훈련'
   | '기록·검사'
   | '보고서'
@@ -73,9 +75,9 @@ export const PERMISSION_META: PermissionMeta[] = [
   { key: 'REVISION_VIEW',    label: '개정 조회',       description: '개정 목록 및 상세 조회',        group: '개정관리' },
   { key: 'REVISION_CREATE',  label: '개정 요청',       description: '개정 요청 및 변경사항 등록',    group: '개정관리' },
   { key: 'REVISION_APPROVE', label: '개정 승인',       description: '개정 요청 승인 처리',           group: '개정관리' },
-  // 승인관리
-  { key: 'APPROVAL_VIEW',    label: '승인관리 조회',   description: '결재 목록 및 상태 조회',        group: '승인관리' },
-  { key: 'APPROVAL_PROCESS', label: '결재 처리',       description: '결재 승인/반려/보류 처리',      group: '승인관리' },
+  // 결재관리
+  { key: 'APPROVAL_VIEW',    label: '결재관리 조회',   description: '결재 목록 및 상태 조회',        group: '결재관리' },
+  { key: 'APPROVAL_PROCESS', label: '결재 처리',       description: '결재 승인/반려/보류 처리',      group: '결재관리' },
   // 교육훈련
   { key: 'TRAINING_VIEW',    label: '교육훈련 조회',   description: '교육훈련 계획 및 결과 조회',    group: '교육훈련' },
   { key: 'TRAINING_MANAGE',  label: '교육훈련 관리',   description: '교육훈련 계획 등록 및 관리',    group: '교육훈련' },
@@ -91,7 +93,7 @@ export const PERMISSION_META: PermissionMeta[] = [
 ];
 
 export const PERMISSION_GROUPS: PermissionGroup[] = [
-  '문서관리', '개정관리', '승인관리', '교육훈련', '기록·검사', '보고서', '시스템',
+  '문서관리', '개정관리', '결재관리', '교육훈련', '기록·검사', '보고서', '시스템',
 ];
 
 export function getPermissionsByGroup(group: PermissionGroup): PermissionMeta[] {
@@ -190,9 +192,11 @@ export const USERS: User[] = [
     departmentId: 'D01',
     departmentName: '품질관리팀',
     position: '팀장',
-    jobTitle: 'QMS 시스템 관리자',
+    jobTitle: 'DMS 시스템 관리자',
     role: 'admin',
     isActive: true,
+    isAdmin: true,
+    canSelfApprove: true,
     permissions: ALL_PERMISSIONS,
     avatarInitials: '김',
     avatarColor: 'bg-blue-600',
@@ -209,6 +213,8 @@ export const USERS: User[] = [
     jobTitle: '품질관리 담당',
     role: 'approver',
     isActive: true,
+    isAdmin: false,
+    canSelfApprove: false,
     permissions: APPROVER_PERMISSIONS,
     avatarInitials: '이',
     avatarColor: 'bg-emerald-600',
@@ -225,6 +231,8 @@ export const USERS: User[] = [
     jobTitle: '생산 관리자',
     role: 'approver',
     isActive: true,
+    isAdmin: false,
+    canSelfApprove: false,
     permissions: APPROVER_PERMISSIONS,
     avatarInitials: '박',
     avatarColor: 'bg-violet-600',
@@ -241,6 +249,8 @@ export const USERS: User[] = [
     jobTitle: '연구개발 담당',
     role: 'user',
     isActive: true,
+    isAdmin: false,
+    canSelfApprove: false,
     permissions: STANDARD_USER_PERMISSIONS,
     avatarInitials: '최',
     avatarColor: 'bg-orange-500',
@@ -257,6 +267,8 @@ export const USERS: User[] = [
     jobTitle: '영업 담당',
     role: 'user',
     isActive: true,
+    isAdmin: false,
+    canSelfApprove: false,
     permissions: STANDARD_USER_PERMISSIONS,
     avatarInitials: '정',
     avatarColor: 'bg-pink-600',
@@ -273,6 +285,8 @@ export const USERS: User[] = [
     jobTitle: '구매 총괄',
     role: 'manager',
     isActive: true,
+    isAdmin: false,
+    canSelfApprove: true,
     permissions: APPROVER_PERMISSIONS,
     avatarInitials: '한',
     avatarColor: 'bg-teal-600',
@@ -289,6 +303,8 @@ export const USERS: User[] = [
     jobTitle: '인사 담당',
     role: 'viewer',
     isActive: false,  // 비활성 계정 예시
+    isAdmin: false,
+    canSelfApprove: false,
     permissions: VIEWER_PERMISSIONS,
     avatarInitials: '오',
     avatarColor: 'bg-gray-500',

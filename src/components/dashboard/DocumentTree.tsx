@@ -1,12 +1,12 @@
 const categories = [
-  { label: '품질메뉴얼', count: 23, color: 'bg-blue-400' },
+  { label: '매뉴얼',   count: 23,  color: 'bg-blue-400' },
   { label: '프로세스', count: 156, color: 'bg-green-400' },
-  { label: '절차서', count: 342, color: 'bg-purple-400' },
-  { label: '지침서', count: 289, color: 'bg-amber-400' },
-  { label: '작업표준서', count: 276, color: 'bg-teal-400' },
-  { label: '검사기준서', count: 98, color: 'bg-red-400' },
-  { label: '기록문서', count: 45, color: 'bg-indigo-400' },
-  { label: '외부문서', count: 19, color: 'bg-gray-400' },
+  { label: '절차서',   count: 342, color: 'bg-purple-400' },
+  { label: '지침서',   count: 289, color: 'bg-amber-400' },
+  { label: '운영문서', count: 276, color: 'bg-teal-400' },
+  { label: '서식',     count: 98,  color: 'bg-red-400' },
+  { label: '기록문서', count: 45,  color: 'bg-indigo-400' },
+  { label: '외부문서', count: 19,  color: 'bg-gray-400' },
 ];
 
 export default function DocumentTree() {
@@ -29,7 +29,7 @@ export default function DocumentTree() {
             <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z" clipRule="evenodd" />
             <path d="M6 12a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H2h2a2 2 0 002-2v-2z" />
           </svg>
-          <span className="text-xs font-semibold text-gray-700">QMS</span>
+          <span className="text-xs font-semibold text-gray-700">DMS</span>
         </div>
 
         {/* Categories */}

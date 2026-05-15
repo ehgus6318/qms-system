@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: Props) {
   const { id } = await params;
   const item = REVISION_ITEMS.find((r) => r.id === Number(id));
   return {
-    title: item ? `QMS - ${item.docName} 개정 상세` : 'QMS - 개정 상세',
+    title: item ? `DMS - ${item.docName} 개정 상세` : 'DMS - 개정 상세',
     description: item?.changeSummary ?? '개정 상세 조회',
   };
 }
@@ -23,7 +23,7 @@ export default async function RevisionDetailPage({ params }: Props) {
   return (
     <PageLayout
       title={item ? `${item.docName} 개정 상세` : '개정 상세'}
-      breadcrumb={`QMS 홈 > 개정관리 > ${item?.docName ?? '상세'} (${item?.currentVer} → ${item?.newVer})`}
+      breadcrumb={`DMS 홈 > 개정관리 > ${item?.docName ?? '상세'} (${item?.currentVer} → ${item?.newVer})`}
     >
       <RevisionDetailClient revisionId={revisionId} />
     </PageLayout>

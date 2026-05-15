@@ -4,12 +4,12 @@ import { useState, useMemo } from 'react';
 import { getStatusStyle } from '@/lib/qmsColors';
 
 const DOC_TYPE_COLORS: Record<string, string> = {
-  품질메뉴얼: 'text-blue-600 bg-blue-50',
+  매뉴얼:     'text-blue-600 bg-blue-50',
   프로세스:   'text-green-600 bg-green-50',
   절차서:     'text-purple-600 bg-purple-50',
   지침서:     'text-amber-600 bg-amber-50',
-  작업표준서: 'text-teal-600 bg-teal-50',
-  검사기준서: 'text-red-600 bg-red-50',
+  운영문서:   'text-teal-600 bg-teal-50',
+  서식:       'text-red-600 bg-red-50',
   기록문서:   'text-indigo-600 bg-indigo-50',
 };
 
@@ -20,13 +20,13 @@ type Row = {
 type ColKey = keyof Row;
 
 const documents: Row[] = [
-  { no: 'QMS-M-001',  name: '품질메뉴얼',                type: '품질메뉴얼', ver: 'Rev.3', status: '승인',   date: '2024-05-20', author: '김영훈' },
-  { no: 'QMS-P-001',  name: '프로세스 관리 절차',         type: '프로세스',   ver: 'Rev.2', status: '승인',   date: '2024-05-15', author: '이부서 부장' },
-  { no: 'QMS-S-001',  name: '문서 및 기록 관리 절차',     type: '절차서',     ver: 'Rev.4', status: '검토 중', date: '2024-05-18', author: '김영훈' },
-  { no: 'QMS-I-001',  name: '내부심사지침서',             type: '지침서',     ver: 'Rev.1', status: '승인',   date: '2024-05-10', author: '이부서 부장' },
-  { no: 'QMS-WI-001', name: '제품 감사 작업표준서',       type: '작업표준서', ver: 'Rev.2', status: '승인',   date: '2024-05-09', author: '박작업 반장' },
-  { no: 'QMS-IN-001', name: '수입검사 기준서',            type: '검사기준서', ver: 'Rev.1', status: '반려',   date: '2024-05-08', author: '최감사 대리' },
-  { no: 'QMS-F-001',  name: '내부심사 체크리스트',        type: '기록문서',   ver: 'Rev.0', status: '초안',   date: '2024-05-07', author: '홍길동' },
+  { no: 'DOC-M-001',  name: '경영 매뉴얼',               type: '매뉴얼',   ver: 'Rev.3', status: '승인',   date: '2024-05-20', author: '김영훈' },
+  { no: 'DOC-P-001',  name: '프로세스 관리 절차',         type: '프로세스', ver: 'Rev.2', status: '승인',   date: '2024-05-15', author: '이수진' },
+  { no: 'DOC-S-001',  name: '문서 및 기록 관리 절차',     type: '절차서',   ver: 'Rev.4', status: '검토 중', date: '2024-05-18', author: '김영훈' },
+  { no: 'DOC-I-001',  name: '내부심사지침서',             type: '지침서',   ver: 'Rev.1', status: '승인',   date: '2024-05-10', author: '박준혁' },
+  { no: 'DOC-WI-001', name: '제품 운영 작업표준서',       type: '운영문서', ver: 'Rev.2', status: '승인',   date: '2024-05-09', author: '한상우' },
+  { no: 'DOC-IN-001', name: '수입검사 지침서',            type: '지침서',   ver: 'Rev.1', status: '반려',   date: '2024-05-08', author: '최민지' },
+  { no: 'DOC-F-001',  name: '심사 체크리스트',            type: '서식',     ver: 'Rev.0', status: '초안',   date: '2024-05-07', author: '정다영' },
 ];
 
 const COLUMNS: { key: ColKey; label: string; sortable: boolean; className?: string }[] = [

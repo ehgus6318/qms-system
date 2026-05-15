@@ -1,14 +1,14 @@
 import DonutChart from './DonutChart';
 
 const docTypes = [
-  { label: '품질메뉴얼', count: 23,  color: '#3b82f6' },
-  { label: '프로세스',   count: 156, color: '#22c55e' },
-  { label: '절차서',     count: 342, color: '#a855f7' },
-  { label: '지침서',     count: 289, color: '#f59e0b' },
-  { label: '작업표준서', count: 276, color: '#14b8a6' },
-  { label: '검사기준서', count: 98,  color: '#ef4444' },
-  { label: '기록문서',   count: 45,  color: '#6366f1' },
-  { label: '외부문서',   count: 19,  color: '#94a3b8' },
+  { label: '매뉴얼',   count: 23,  color: '#3b82f6' },
+  { label: '프로세스', count: 156, color: '#22c55e' },
+  { label: '절차서',   count: 342, color: '#a855f7' },
+  { label: '지침서',   count: 289, color: '#f59e0b' },
+  { label: '운영문서', count: 276, color: '#14b8a6' },
+  { label: '서식',     count: 98,  color: '#ef4444' },
+  { label: '기록문서', count: 45,  color: '#6366f1' },
+  { label: '외부문서', count: 19,  color: '#94a3b8' },
 ];
 
 const maxCount = Math.max(...docTypes.map((d) => d.count));

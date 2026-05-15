@@ -82,7 +82,7 @@ export const APPROVAL_ITEMS: ApprovalItem[] = [
   /* ── 결재 대기 ─────────────────────────────────────── */
   {
     id: 1001,
-    docId: 19, docNo: 'QMS-IN-003', docName: '완제품 검사 기준서', docType: '검사기준서', docVer: 'Rev.2',
+    docId: 19, docNo: 'QMS-IN-003', docName: '완제품 검사 기준서', docType: '운영문서', docVer: 'Rev.2',
     requestedAt: '2024-05-14 16:00', requestedBy: '최감사', requestedByDept: '품질팀',
     dueDate: '2024-05-21', urgency: 'urgent',
     status: '결재 대기',
@@ -163,7 +163,7 @@ export const APPROVAL_ITEMS: ApprovalItem[] = [
   /* ── 승인 완료 ──────────────────────────────────────── */
   {
     id: 1006,
-    docId: 1, docNo: 'QMS-M-001', docName: '품질메뉴얼', docType: '품질메뉴얼', docVer: 'Rev.3',
+    docId: 1, docNo: 'QMS-M-001', docName: '품질메뉴얼', docType: '매뉴얼', docVer: 'Rev.3',
     requestedAt: '2024-05-19 08:30', requestedBy: '김영훈', requestedByDept: 'IT팀',
     dueDate: '2024-05-26', urgency: 'normal',
     status: '승인',
@@ -227,7 +227,7 @@ export const APPROVAL_ITEMS: ApprovalItem[] = [
   },
   {
     id: 1010,
-    docId: 17, docNo: 'QMS-IN-001', docName: '수입검사 기준서', docType: '검사기준서', docVer: 'Rev.1',
+    docId: 17, docNo: 'QMS-IN-001', docName: '수입검사 기준서', docType: '운영문서', docVer: 'Rev.1',
     requestedAt: '2024-05-08 09:00', requestedBy: '최감사', requestedByDept: '품질팀',
     dueDate: '2024-05-15', urgency: 'normal',
     status: '반려',

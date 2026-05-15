@@ -1,3 +1,8 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// src/components/dashboard/QuickAccess.tsx
+// 빠른 작업 바로가기 (DMS 중심)
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface QuickButton {
   label: string;
   badge?: number;
@@ -11,7 +16,7 @@ const quickButtons: QuickButton[] = [
   {
     label: '결재 대기',
     badge: 7,
-    href: '/approval',
+    href: '/approvals',
     color: 'text-orange-600 bg-orange-50 border-orange-200',
     hoverColor: 'hover:bg-orange-100 hover:border-orange-300 hover:shadow-orange-100',
     icon: (
@@ -21,22 +26,9 @@ const quickButtons: QuickButton[] = [
     ),
   },
   {
-    label: '검토 요청',
-    badge: 2,
-    href: '/review',
-    color: 'text-blue-600 bg-blue-50 border-blue-200',
-    hoverColor: 'hover:bg-blue-100 hover:border-blue-300 hover:shadow-blue-100',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-      </svg>
-    ),
-  },
-  {
-    label: '개정 대기',
-    badge: 1,
-    href: '/revision',
+    label: '개정 요청',
+    badge: 5,
+    href: '/revisions',
     color: 'text-purple-600 bg-purple-50 border-purple-200',
     hoverColor: 'hover:bg-purple-100 hover:border-purple-300 hover:shadow-purple-100',
     icon: (
@@ -46,21 +38,10 @@ const quickButtons: QuickButton[] = [
     ),
   },
   {
-    label: '교육 대기',
-    href: '/training',
-    color: 'text-teal-600 bg-teal-50 border-teal-200',
-    hoverColor: 'hover:bg-teal-100 hover:border-teal-300 hover:shadow-teal-100',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-      </svg>
-    ),
-  },
-  {
     label: '내 문서함',
-    href: '/my-docs',
-    color: 'text-green-600 bg-green-50 border-green-200',
-    hoverColor: 'hover:bg-green-100 hover:border-green-300 hover:shadow-green-100',
+    href: '/documents/my',
+    color: 'text-blue-600 bg-blue-50 border-blue-200',
+    hoverColor: 'hover:bg-blue-100 hover:border-blue-300 hover:shadow-blue-100',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
@@ -68,8 +49,30 @@ const quickButtons: QuickButton[] = [
     ),
   },
   {
+    label: '요청 문서',
+    href: '/approvals/requested',
+    color: 'text-indigo-600 bg-indigo-50 border-indigo-200',
+    hoverColor: 'hover:bg-indigo-100 hover:border-indigo-300 hover:shadow-indigo-100',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+    ),
+  },
+  {
+    label: '즐겨찾기',
+    href: '/documents/favorites',
+    color: 'text-amber-600 bg-amber-50 border-amber-200',
+    hoverColor: 'hover:bg-amber-100 hover:border-amber-300 hover:shadow-amber-100',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+      </svg>
+    ),
+  },
+  {
     label: '문서 검색',
-    href: '/search',
+    href: '/documents',
     color: 'text-gray-600 bg-gray-50 border-gray-200',
     hoverColor: 'hover:bg-gray-100 hover:border-gray-300 hover:shadow-gray-100',
     icon: (
@@ -84,7 +87,7 @@ export default function QuickAccess() {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-800">업무 바로가기</h3>
+        <h3 className="text-sm font-semibold text-gray-800">빠른 작업</h3>
         <button className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors">편집</button>
       </div>
 
@@ -121,7 +124,7 @@ export default function QuickAccess() {
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          신규문서 등록
+          신규 문서 등록
         </a>
       </div>
     </div>

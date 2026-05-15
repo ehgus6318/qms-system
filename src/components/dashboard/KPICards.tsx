@@ -7,7 +7,7 @@ interface KPICardProps {
   icon: React.ReactNode;
   iconBg: string;
   href: string;
-  urgent?: boolean;  // 결재 대기 강조
+  urgent?: boolean;
 }
 
 function KPICard({
@@ -28,12 +28,9 @@ function KPICard({
       <div className="flex items-start justify-between gap-3">
         {/* Left: text */}
         <div className="min-w-0 flex-1">
-          {/* 제목 */}
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
             {title}
           </p>
-
-          {/* 값 */}
           <div className="flex items-baseline gap-1.5 mb-1">
             <span
               className={[
@@ -50,11 +47,7 @@ function KPICard({
               </span>
             )}
           </div>
-
-          {/* 서브타이틀 */}
           <p className="text-[11px] text-gray-400 mb-2 leading-tight">{subtitle}</p>
-
-          {/* 전월 대비 */}
           <div className="flex items-center gap-1">
             <span
               className={[
@@ -88,7 +81,6 @@ function KPICard({
           >
             {icon}
           </div>
-          {/* 바로가기 화살표 */}
           <span className="text-[10px] text-gray-300 group-hover:text-blue-400 transition-colors duration-200 flex items-center gap-0.5 font-medium">
             바로가기
             <svg className="w-3 h-3 translate-x-0 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
@@ -118,7 +110,50 @@ export default function KPICards() {
       ),
     },
     {
-      title: '최신 문서',
+      title: '결재 대기',
+      value: '7',
+      subtitle: '결재가 필요한 문서',
+      change: '+2',
+      changePositive: false,
+      iconBg: 'bg-orange-50',
+      href: '/approvals',
+      urgent: true,
+      icon: (
+        <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      title: '개정 진행중',
+      value: '5',
+      subtitle: '개정이 진행 중인 문서',
+      change: '+1',
+      changePositive: false,
+      iconBg: 'bg-purple-50',
+      href: '/revisions',
+      icon: (
+        <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      ),
+    },
+    {
+      title: '보안 문서',
+      value: '98',
+      subtitle: '기밀·대외비 문서',
+      change: '+3',
+      changePositive: true,
+      iconBg: 'bg-red-50',
+      href: '/documents?access=confidential',
+      icon: (
+        <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      ),
+    },
+    {
+      title: '최근 등록',
       value: '23',
       subtitle: '최근 7일 신규 등록',
       change: '+8',
@@ -132,52 +167,23 @@ export default function KPICards() {
       ),
     },
     {
-      title: '결재 대기',
-      value: '7',
-      subtitle: '결재가 필요한 문서',
-      change: '+2',
-      changePositive: false,
-      iconBg: 'bg-orange-50',
-      href: '/approval',
-      urgent: true,
-      icon: (
-        <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: '개정 대기',
-      value: '5',
-      subtitle: '개정이 필요한 문서',
-      change: '+1',
-      changePositive: false,
-      iconBg: 'bg-purple-50',
-      href: '/revision',
-      icon: (
-        <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-      ),
-    },
-    {
-      title: '교육 일정',
-      value: '3',
-      subtitle: '예정된 교육 세션',
-      change: '+1',
+      title: '내 문서함',
+      value: '42',
+      subtitle: '내가 작성한 문서',
+      change: '+5',
       changePositive: true,
-      iconBg: 'bg-rose-50',
-      href: '/training',
+      iconBg: 'bg-indigo-50',
+      href: '/documents/my',
       icon: (
-        <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
         </svg>
       ),
     },
   ];
 
   return (
-    <div className="grid grid-cols-5 gap-3">
+    <div className="grid grid-cols-6 gap-3">
       {cards.map((card, i) => (
         <KPICard key={i} {...card} />
       ))}

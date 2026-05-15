@@ -1,9 +1,9 @@
 const notices = [
-  { title: '2024년 2분기 내부심사 일정 안내', date: '2024-05-20', isNew: true },
-  { title: 'QMS 시스템 점검 만내 (5/25)', date: '2024-05-18', isNew: true },
-  { title: 'ISO 9001:2015 개정사항 교육 안내', date: '2024-05-15', isNew: false },
-  { title: '신입 감사 사원입사 QMS 교육 일정', date: '2024-05-10', isNew: false },
-  { title: '품질관리 우수사례 발표 안내', date: '2024-05-08', isNew: false },
+  { title: 'DMS 시스템 점검 안내 (5/25)', date: '2024-05-20', isNew: true },
+  { title: '2025년 2분기 문서 정기 검토 일정', date: '2024-05-18', isNew: true },
+  { title: '문서 분류 체계 개편 안내', date: '2024-05-15', isNew: false },
+  { title: '신규 개정 절차 가이드 배포', date: '2024-05-10', isNew: false },
+  { title: '문서관리 우수 사례 공유 세션', date: '2024-05-08', isNew: false },
 ];
 
 export default function NoticeBoard() {

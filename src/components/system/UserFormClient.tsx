@@ -10,17 +10,13 @@ import { useRouter } from 'next/navigation';
 import {
   USERS,
   USER_DEPARTMENTS,
-  PERMISSION_META,
-  PERMISSION_GROUPS,
   ROLE_LABELS,
   ROLE_COLORS,
   ROLE_PERMISSION_PRESET,
   AVATAR_COLORS,
-  generateNextUserId,
   type User,
   type UserRole,
   type Permission,
-  type PermissionGroup,
 } from '@/lib/usersData';
 
 // ── 폼 상태 타입 ──────────────────────────────────────────────────────────────
@@ -34,7 +30,9 @@ interface UserFormState {
   jobTitle: string;        // 직책
   role: UserRole;
   isActive: boolean;
-  permissions: Permission[];
+  isAdmin: boolean;         // 관리자 권한
+  canSelfApprove: boolean;  // 본인 결재 허용
+  permissions: Permission[]; // 하위호환 유지
   avatarColor: string;
   phone: string;
 }
@@ -81,93 +79,33 @@ const inputCls =
 const selectCls =
   'w-full px-3.5 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white';
 
-// ── 권한 그룹 패널 ─────────────────────────────────────────────────────────────
+// ── 토글 스위치 ───────────────────────────────────────────────────────────────
 
-function PermissionGroupPanel({
-  group,
-  permissions,
+function Toggle({
+  checked,
   onChange,
+  colorOn = 'bg-blue-500',
 }: {
-  group: PermissionGroup;
-  permissions: Permission[];
-  onChange: (perm: Permission, checked: boolean) => void;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  colorOn?: string;
 }) {
-  const items = PERMISSION_META.filter((p) => p.group === group);
-  const activeCount = items.filter((p) => permissions.includes(p.key)).length;
-
-  const groupColors: Record<PermissionGroup, string> = {
-    '문서관리': 'bg-blue-50 border-blue-200',
-    '개정관리': 'bg-indigo-50 border-indigo-200',
-    '승인관리': 'bg-emerald-50 border-emerald-200',
-    '교육훈련': 'bg-amber-50 border-amber-200',
-    '기록·검사': 'bg-teal-50 border-teal-200',
-    '보고서':   'bg-gray-50 border-gray-200',
-    '시스템':   'bg-red-50 border-red-200',
-  };
-
-  const groupBadge: Record<PermissionGroup, string> = {
-    '문서관리': 'bg-blue-100 text-blue-700',
-    '개정관리': 'bg-indigo-100 text-indigo-700',
-    '승인관리': 'bg-emerald-100 text-emerald-700',
-    '교육훈련': 'bg-amber-100 text-amber-700',
-    '기록·검사': 'bg-teal-100 text-teal-700',
-    '보고서':   'bg-gray-100 text-gray-600',
-    '시스템':   'bg-red-100 text-red-700',
-  };
-
   return (
-    <div className={`rounded-xl border p-4 ${groupColors[group]}`}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <h4 className="text-xs font-bold text-gray-700">{group}</h4>
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${groupBadge[group]}`}>
-            {activeCount}/{items.length}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            const allActive = items.every((p) => permissions.includes(p.key));
-            items.forEach((p) => onChange(p.key, !allActive));
-          }}
-          className="text-[10px] text-gray-500 hover:text-gray-700 underline underline-offset-2"
-        >
-          {items.every((p) => permissions.includes(p.key)) ? '전체 해제' : '전체 선택'}
-        </button>
-      </div>
-      <div className="space-y-2">
-        {items.map((perm) => {
-          const checked = permissions.includes(perm.key);
-          return (
-            <label
-              key={perm.key}
-              className={[
-                'flex items-start gap-2.5 p-2.5 rounded-lg cursor-pointer transition-colors',
-                checked ? 'bg-white shadow-sm' : 'hover:bg-white/60',
-              ].join(' ')}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => onChange(perm.key, e.target.checked)}
-                className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-xs font-semibold ${checked ? 'text-gray-800' : 'text-gray-500'}`}>
-                    {perm.label}
-                  </span>
-                  {perm.dangerous && (
-                    <span className="text-[9px] font-bold px-1 py-px rounded bg-red-100 text-red-600 uppercase">위험</span>
-                  )}
-                </div>
-                <p className="text-[11px] text-gray-400 leading-tight">{perm.description}</p>
-              </div>
-            </label>
-          );
-        })}
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={[
+        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+        checked ? colorOn : 'bg-gray-300',
+      ].join(' ')}
+    >
+      <span
+        className={[
+          'inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform',
+          checked ? 'translate-x-4.5' : 'translate-x-0.5',
+        ].join(' ')}
+      />
+    </button>
   );
 }
 
@@ -185,17 +123,19 @@ export default function UserFormClient({ mode, userId }: Props) {
   const existingUser = mode === 'edit' ? USERS.find((u) => u.id === userId) : undefined;
 
   const [form, setForm] = useState<UserFormState>({
-    name:         existingUser?.name         ?? '',
-    email:        existingUser?.email        ?? '',
-    tempPassword: '',
-    departmentId: existingUser?.departmentId ?? 'D01',
-    position:     existingUser?.position     ?? '',
-    jobTitle:     existingUser?.jobTitle     ?? '',
-    role:         existingUser?.role         ?? 'user',
-    isActive:     existingUser?.isActive     ?? true,
-    permissions:  existingUser?.permissions  ?? [...ROLE_PERMISSION_PRESET['user']],
-    avatarColor:  existingUser?.avatarColor  ?? 'bg-blue-600',
-    phone:        existingUser?.phone        ?? '',
+    name:           existingUser?.name           ?? '',
+    email:          existingUser?.email          ?? '',
+    tempPassword:   '',
+    departmentId:   existingUser?.departmentId   ?? 'D01',
+    position:       existingUser?.position       ?? '',
+    jobTitle:       existingUser?.jobTitle       ?? '',
+    role:           existingUser?.role           ?? 'user',
+    isActive:       existingUser?.isActive       ?? true,
+    isAdmin:        existingUser?.isAdmin        ?? false,
+    canSelfApprove: existingUser?.canSelfApprove ?? false,
+    permissions:    existingUser?.permissions    ?? [...ROLE_PERMISSION_PRESET['user']],
+    avatarColor:    existingUser?.avatarColor    ?? 'bg-blue-600',
+    phone:          existingUser?.phone          ?? '',
   });
 
   const [saving, setSaving] = useState(false);
@@ -215,16 +155,6 @@ export default function UserFormClient({ mode, userId }: Props) {
     update('role', role);
     setForm((prev) => ({ ...prev, role, permissions: [...ROLE_PERMISSION_PRESET[role]] }));
   };
-
-  // 개별 권한 토글
-  const togglePermission = useCallback((perm: Permission, checked: boolean) => {
-    setForm((prev) => ({
-      ...prev,
-      permissions: checked
-        ? [...prev.permissions, perm]
-        : prev.permissions.filter((p) => p !== perm),
-    }));
-  }, []);
 
   // 유효성 검사
   const validate = (): boolean => {
@@ -400,34 +330,6 @@ export default function UserFormClient({ mode, userId }: Props) {
                   <p className="text-[11px] text-gray-400 mt-1.5">역할 선택 시 권한이 자동으로 적용됩니다</p>
                 </Field>
 
-                {/* 계정 상태 */}
-                <Field label="계정 상태">
-                  <label className={[
-                    'flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
-                    form.isActive ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50',
-                  ].join(' ')}>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${form.isActive ? 'bg-green-500' : 'bg-gray-400'}`} />
-                      <span className={`text-sm font-medium ${form.isActive ? 'text-green-700' : 'text-gray-500'}`}>
-                        {form.isActive ? '활성 계정' : '비활성 계정'}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => update('isActive', !form.isActive)}
-                      className={[
-                        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
-                        form.isActive ? 'bg-green-500' : 'bg-gray-300',
-                      ].join(' ')}
-                    >
-                      <span className={[
-                        'inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform',
-                        form.isActive ? 'translate-x-4.5' : 'translate-x-0.5',
-                      ].join(' ')} />
-                    </button>
-                  </label>
-                </Field>
-
                 {/* Mock 안내 */}
                 <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
                   <svg className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -514,7 +416,7 @@ export default function UserFormClient({ mode, userId }: Props) {
                   {errors.position && <p className="text-xs text-red-500 mt-1">{errors.position}</p>}
                 </Field>
 
-                <Field label="직책" required hint="예: QMS 담당, 팀장, 품질관리 담당">
+                <Field label="직책" required hint="예: DMS 담당, 팀장, 문서관리 담당">
                   <input
                     type="text"
                     value={form.jobTitle}
@@ -547,54 +449,77 @@ export default function UserFormClient({ mode, userId }: Props) {
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <SectionHeader
                 title="권한 설정"
-                desc="역할 선택 시 자동으로 적용되며, 개별 권한을 직접 조정할 수 있습니다"
+                desc="3가지 핵심 권한으로 접근 범위를 제어합니다"
               />
-              <div className="p-5">
-                {/* 선택된 권한 수 */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-gray-800">{form.permissions.length}</span>
-                    <span className="text-sm text-gray-500">/ {PERMISSION_META.length}개 권한 선택됨</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setForm((p) => ({ ...p, permissions: PERMISSION_META.map((m) => m.key) }))}
-                      className="text-xs text-gray-500 hover:text-gray-800 border border-gray-200 rounded px-2 py-1 hover:bg-gray-50 transition-colors"
-                    >
-                      전체 선택
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm((p) => ({ ...p, permissions: [] }))}
-                      className="text-xs text-gray-500 hover:text-gray-800 border border-gray-200 rounded px-2 py-1 hover:bg-gray-50 transition-colors"
-                    >
-                      전체 해제
-                    </button>
-                  </div>
-                </div>
+              <div className="p-5 space-y-3">
 
-                {/* 권한 그룹 */}
-                <div className="grid grid-cols-2 gap-3">
-                  {PERMISSION_GROUPS.map((group) => (
-                    <PermissionGroupPanel
-                      key={group}
-                      group={group}
-                      permissions={form.permissions}
-                      onChange={togglePermission}
-                    />
-                  ))}
-                </div>
+                {/* 1. 계정 활성 */}
+                <label className={[
+                  'flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+                  form.isActive ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50',
+                ].join(' ')}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${form.isActive ? 'bg-green-100' : 'bg-gray-100'}`}>
+                      <span className={`text-base ${form.isActive ? 'text-green-600' : 'text-gray-400'}`}>✓</span>
+                    </div>
+                    <div>
+                      <p className={`text-sm font-semibold ${form.isActive ? 'text-green-800' : 'text-gray-500'}`}>계정 활성</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">비활성 시 로그인 및 모든 DMS 기능 사용 불가</p>
+                    </div>
+                  </div>
+                  <Toggle checked={form.isActive} onChange={(v) => update('isActive', v)} colorOn="bg-green-500" />
+                </label>
 
-                {/* 시스템 권한 경고 */}
-                {(form.permissions.includes('SYSTEM_MANAGE') || form.permissions.includes('USER_MANAGE')) && (
-                  <div className="mt-4 flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
+                {/* 2. 관리자 권한 */}
+                <label className={[
+                  'flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+                  form.isAdmin ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50',
+                ].join(' ')}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${form.isAdmin ? 'bg-red-100' : 'bg-gray-100'}`}>
+                      <svg className={`w-4 h-4 ${form.isAdmin ? 'text-red-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className={`text-sm font-semibold ${form.isAdmin ? 'text-red-800' : 'text-gray-500'}`}>관리자 권한</p>
+                        {form.isAdmin && <span className="text-[9px] font-bold px-1 py-px rounded bg-red-100 text-red-600 uppercase">위험</span>}
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-0.5">문서분류·사용자관리·시스템설정 메뉴 접근 허용</p>
+                    </div>
+                  </div>
+                  <Toggle checked={form.isAdmin} onChange={(v) => update('isAdmin', v)} colorOn="bg-red-500" />
+                </label>
+
+                {/* 3. 본인 결재 허용 */}
+                <label className={[
+                  'flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+                  form.canSelfApprove ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50',
+                ].join(' ')}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${form.canSelfApprove ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                      <svg className={`w-4 h-4 ${form.canSelfApprove ? 'text-blue-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className={`text-sm font-semibold ${form.canSelfApprove ? 'text-blue-800' : 'text-gray-500'}`}>본인 결재 허용</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">본인이 등록한 문서를 직접 결재 처리할 수 있음</p>
+                    </div>
+                  </div>
+                  <Toggle checked={form.canSelfApprove} onChange={(v) => update('canSelfApprove', v)} colorOn="bg-blue-500" />
+                </label>
+
+                {/* 관리자 권한 경고 */}
+                {form.isAdmin && (
+                  <div className="flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
                     <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                     <div>
-                      <p className="text-xs font-bold text-red-700">위험 권한이 포함되어 있습니다</p>
-                      <p className="text-[11px] text-red-600 mt-0.5">시스템 관리 또는 사용자 관리 권한은 신뢰할 수 있는 담당자에게만 부여하세요.</p>
+                      <p className="text-xs font-bold text-red-700">관리자 권한 부여됨</p>
+                      <p className="text-[11px] text-red-600 mt-0.5">신뢰할 수 있는 담당자에게만 부여하세요.</p>
                     </div>
                   </div>
                 )}
@@ -612,8 +537,9 @@ export default function UserFormClient({ mode, userId }: Props) {
                     ['부서', existingUser.departmentName],
                     ['직급 / 직책', `${existingUser.position} / ${existingUser.jobTitle}`],
                     ['역할', ROLE_LABELS[existingUser.role]],
-                    ['상태', existingUser.isActive ? '활성' : '비활성'],
-                    ['권한 수', `${existingUser.permissions.length}개`],
+                    ['계정 상태', existingUser.isActive ? '✅ 활성' : '❌ 비활성'],
+                    ['관리자 권한', existingUser.isAdmin ? '✅ 허용' : '—'],
+                    ['본인 결재', existingUser.canSelfApprove ? '✅ 허용' : '—'],
                     ['가입일', existingUser.joinedAt ?? '-'],
                   ].map(([label, val]) => (
                     <div key={label} className="flex justify-between py-2 border-b border-gray-50">
