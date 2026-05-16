@@ -2,35 +2,20 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // src/components/system/UsersListClient.tsx
-// 사용자 관리 목록 화면
+// 사용자 관리 목록 — DB 연결
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  USERS,
-  USER_DEPARTMENTS,
-  PERMISSION_META,
-  ROLE_LABELS,
-  ROLE_COLORS,
-  type User,
-  type UserRole,
-} from '@/lib/usersData';
+import { ROLE_LABELS, ROLE_COLORS, type UserRole } from '@/lib/usersData';
+import { fetchUsers, updateUser, type ApiUser } from '@/lib/userApi';
 import { useAuth } from '@/context/AuthContext';
 import { canManageUsers } from '@/lib/authUtils';
 
 // ── 통계 카드 ──────────────────────────────────────────────────────────────────
 
-function StatCard({
-  label,
-  value,
-  sub,
-  color,
-}: {
-  label: string;
-  value: number;
-  sub?: string;
-  color: string;
+function StatCard({ label, value, sub, color }: {
+  label: string; value: number; sub?: string; color: string;
 }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4 flex items-center gap-4">
@@ -45,27 +30,42 @@ function StatCard({
   );
 }
 
-// ── 권한 뱃지 요약 ─────────────────────────────────────────────────────────────
+// ── 권한 뱃지 (isAdmin / canSelfApprove) ─────────────────────────────────────
 
-function PermissionSummary({ permissions }: { permissions: string[] }) {
-  const keyPerms = [
-    { key: 'DOCUMENT_APPROVE', label: '결재', color: 'bg-blue-100 text-blue-700' },
-    { key: 'REVISION_APPROVE', label: '개정', color: 'bg-indigo-100 text-indigo-700' },
-    { key: 'APPROVAL_PROCESS', label: '승인처리', color: 'bg-emerald-100 text-emerald-700' },
-    { key: 'SYSTEM_MANAGE',   label: '시스템', color: 'bg-red-100 text-red-700' },
-    { key: 'USER_MANAGE',     label: '사용자관리', color: 'bg-orange-100 text-orange-700' },
-  ];
-  const active = keyPerms.filter((p) => permissions.includes(p.key));
+function PermissionBadges({ user }: { user: ApiUser }) {
   return (
     <div className="flex flex-wrap gap-1">
-      {active.map((p) => (
-        <span key={p.key} className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${p.color}`}>
-          {p.label}
-        </span>
-      ))}
-      {active.length === 0 && (
+      {user.isAdmin && (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700">관리자</span>
+      )}
+      {user.canSelfApprove && (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">본인결재</span>
+      )}
+      {!user.isAdmin && !user.canSelfApprove && (
         <span className="text-[10px] text-gray-400">기본 조회</span>
       )}
+    </div>
+  );
+}
+
+// ── 로딩 스켈레톤 ─────────────────────────────────────────────────────────────
+
+function TableSkeleton() {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="animate-pulse">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3.5 border-b border-gray-50">
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 bg-gray-200 rounded w-32" />
+              <div className="h-2.5 bg-gray-100 rounded w-48" />
+            </div>
+            <div className="h-3 bg-gray-100 rounded w-20" />
+            <div className="h-3 bg-gray-100 rounded w-16" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -76,42 +76,76 @@ export default function UsersListClient() {
   const router = useRouter();
   const { currentUser } = useAuth();
 
-  const [search, setSearch] = useState('');
+  // ── 상태 ──────────────────────────────────────────────────────────────────
+  const [users, setUsers]           = useState<ApiUser[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [fetchError, setFetchError] = useState('');
+
+  const [search, setSearch]         = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+
+  const [deactivating, setDeactivating] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<ApiUser | null>(null);
 
   const canManage = canManageUsers(currentUser);
 
-  // ── 필터링 ────────────────────────────────────────────────────────────────
+  // ── 목록 로드 ─────────────────────────────────────────────────────────────
+
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    setFetchError('');
+    try {
+      const data = await fetchUsers();
+      setUsers(data);
+    } catch {
+      setFetchError('사용자 목록을 불러오는 데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadUsers(); }, [loadUsers]);
+
+  // ── 클라이언트 필터 ───────────────────────────────────────────────────────
+
   const filtered = useMemo(() => {
-    return USERS.filter((u) => {
+    return users.filter((u) => {
       const q = search.toLowerCase();
       const matchSearch =
         !q ||
-        u.name.includes(q) ||
+        u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
-        u.departmentName.includes(q) ||
-        u.position.includes(q) ||
-        u.jobTitle.includes(q);
-      const matchDept = deptFilter === 'all' || u.departmentId === deptFilter;
-      const matchRole = roleFilter === 'all' || u.role === roleFilter;
+        u.departmentName.toLowerCase().includes(q) ||
+        u.position.toLowerCase().includes(q) ||
+        u.jobTitle.toLowerCase().includes(q);
+      const matchDept   = deptFilter === 'all' || u.departmentId === deptFilter;
+      const matchRole   = roleFilter === 'all' || u.role === roleFilter;
       const matchStatus =
         statusFilter === 'all' ||
-        (statusFilter === 'active' && u.isActive) ||
+        (statusFilter === 'active'   && u.isActive) ||
         (statusFilter === 'inactive' && !u.isActive);
       return matchSearch && matchDept && matchRole && matchStatus;
     });
-  }, [search, deptFilter, roleFilter, statusFilter]);
+  }, [users, search, deptFilter, roleFilter, statusFilter]);
 
   // ── 통계 ──────────────────────────────────────────────────────────────────
+
   const stats = useMemo(() => ({
-    total:    USERS.length,
-    active:   USERS.filter((u) => u.isActive).length,
-    inactive: USERS.filter((u) => !u.isActive).length,
-    admins:   USERS.filter((u) => u.role === 'admin' || u.role === 'manager').length,
-  }), []);
+    total:    users.length,
+    active:   users.filter((u) => u.isActive).length,
+    inactive: users.filter((u) => !u.isActive).length,
+    admins:   users.filter((u) => u.isAdmin).length,
+  }), [users]);
+
+  // ── 부서 목록 (API 데이터 기반 동적 추출) ────────────────────────────────
+
+  const deptOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    users.forEach((u) => seen.set(u.departmentId, u.departmentName));
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [users]);
 
   const roles: { value: 'all' | UserRole; label: string }[] = [
     { value: 'all',      label: '전체 역할' },
@@ -122,22 +156,40 @@ export default function UsersListClient() {
     { value: 'viewer',   label: '조회자' },
   ];
 
+  // ── 비활성화 처리 ─────────────────────────────────────────────────────────
+
+  const handleDeactivate = async () => {
+    if (!deactivateTarget) return;
+    setDeactivating(true);
+    const { error } = await updateUser(deactivateTarget.id, { isActive: false });
+    setDeactivating(false);
+    if (error) {
+      alert(`비활성화 실패: ${error}`);
+      return;
+    }
+    setDeactivateTarget(null);
+    await loadUsers();  // 목록 새로고침
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="px-6 py-5 space-y-5">
 
       {/* ── 통계 카드 ── */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard label="전체 사용자" value={stats.total}    color="bg-blue-500" />
-        <StatCard label="활성 계정"   value={stats.active}   color="bg-green-500" sub={`비활성: ${stats.inactive}명`} />
-        <StatCard label="관리자급"    value={stats.admins}   color="bg-purple-500" sub="admin + manager" />
-        <StatCard label="권한 그룹"   value={5}              color="bg-orange-400" sub="역할 유형" />
+        <StatCard label="활성 계정"   value={stats.active}   color="bg-green-500"  sub={`비활성: ${stats.inactive}명`} />
+        <StatCard label="관리자 권한" value={stats.admins}   color="bg-red-500"    sub="isAdmin=true 계정" />
+        <StatCard label="필터 결과"   value={filtered.length} color="bg-orange-400" sub="현재 조건 일치" />
       </div>
 
       {/* ── 툴바 ── */}
       <div className="flex items-center gap-3 flex-wrap">
         {/* 검색 */}
         <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -156,7 +208,7 @@ export default function UsersListClient() {
           className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">전체 부서</option>
-          {USER_DEPARTMENTS.map((d) => (
+          {deptOptions.map((d) => (
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
         </select>
@@ -190,7 +242,19 @@ export default function UsersListClient() {
 
         <div className="flex-1" />
 
-        {/* 신규 등록 버튼 */}
+        {/* 새로고침 */}
+        <button
+          onClick={loadUsers}
+          disabled={loading}
+          className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          title="새로고침"
+        >
+          <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+
+        {/* 신규 등록 */}
         {canManage && (
           <button
             onClick={() => router.push('/system/users/new')}
@@ -204,156 +268,141 @@ export default function UsersListClient() {
         )}
       </div>
 
-      {/* ── 결과 수 ── */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-500">
+      {/* ── 결과 수 / 에러 ── */}
+      {fetchError ? (
+        <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {fetchError}
+          <button onClick={loadUsers} className="ml-2 underline text-red-600 font-medium">다시 시도</button>
+        </div>
+      ) : (
+        <div className="text-sm text-gray-500">
           총 <strong className="text-gray-800">{filtered.length}</strong>명
-          {filtered.length !== USERS.length && ` / 전체 ${USERS.length}명`}
-        </span>
-      </div>
+          {filtered.length !== users.length && ` / 전체 ${users.length}명`}
+        </div>
+      )}
 
       {/* ── 테이블 ── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-8">#</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">사용자</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">부서 / 직급</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">역할</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">권한 요약</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">가입일</th>
-              {canManage && (
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">작업</th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={canManage ? 8 : 7} className="px-4 py-16 text-center text-gray-400">
-                  <svg className="w-10 h-10 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <p className="text-sm">검색 결과가 없습니다</p>
-                </td>
+      {loading ? (
+        <TableSkeleton />
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-8">#</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">사용자</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">부서 / 직급</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">역할</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">권한</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">가입일</th>
+                {canManage && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">작업</th>
+                )}
               </tr>
-            ) : (
-              filtered.map((user, idx) => (
-                <tr
-                  key={user.id}
-                  className={`hover:bg-gray-50 transition-colors ${!user.isActive ? 'opacity-60' : ''}`}
-                >
-                  {/* 번호 */}
-                  <td className="px-4 py-3.5 text-xs text-gray-400">{idx + 1}</td>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={canManage ? 8 : 7} className="px-4 py-16 text-center text-gray-400">
+                    <svg className="w-10 h-10 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <p className="text-sm">검색 결과가 없습니다</p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((user, idx) => (
+                  <tr key={user.id}
+                    className={`hover:bg-gray-50 transition-colors ${!user.isActive ? 'opacity-60' : ''}`}
+                  >
+                    {/* 번호 */}
+                    <td className="px-4 py-3.5 text-xs text-gray-400">{idx + 1}</td>
 
-                  {/* 사용자 */}
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full ${user.avatarColor} flex items-center justify-center flex-shrink-0 shadow-sm`}>
-                        <span className="text-white text-xs font-bold">{user.avatarInitials}</span>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-gray-900 text-sm">{user.name}</span>
-                          {user.id === currentUser?.id && (
-                            <span className="text-[10px] bg-blue-100 text-blue-600 font-medium px-1.5 py-0.5 rounded">나</span>
-                          )}
+                    {/* 사용자 */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full ${user.avatarColor} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                          <span className="text-white text-xs font-bold">{user.avatarInitials}</span>
                         </div>
-                        <div className="text-xs text-gray-400">{user.email}</div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* 부서/직급 */}
-                  <td className="px-4 py-3.5">
-                    <div className="text-sm text-gray-800">{user.departmentName}</div>
-                    <div className="text-xs text-gray-400">{user.position} · {user.jobTitle}</div>
-                  </td>
-
-                  {/* 역할 */}
-                  <td className="px-4 py-3.5">
-                    <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full border ${ROLE_COLORS[user.role]}`}>
-                      {ROLE_LABELS[user.role]}
-                    </span>
-                  </td>
-
-                  {/* 권한 요약 */}
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <PermissionSummary permissions={user.permissions} />
-                      <span className="text-[10px] text-gray-300 ml-1">{user.permissions.length}개</span>
-                    </div>
-                  </td>
-
-                  {/* 상태 */}
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${user.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
-                      <span className={`text-xs font-medium ${user.isActive ? 'text-green-700' : 'text-gray-400'}`}>
-                        {user.isActive ? '활성' : '비활성'}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* 가입일 */}
-                  <td className="px-4 py-3.5 text-xs text-gray-500">{user.joinedAt ?? '-'}</td>
-
-                  {/* 작업 버튼 */}
-                  {canManage && (
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => router.push(`/system/users/${user.id}/edit`)}
-                          className="px-2.5 py-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors font-medium"
-                        >
-                          수정
-                        </button>
-                        {user.id !== currentUser?.id && (
-                          <button
-                            onClick={() => setDeleteTarget(user)}
-                            className="px-2.5 py-1.5 text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors font-medium"
-                          >
-                            비활성화
-                          </button>
-                        )}
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-gray-900 text-sm">{user.name}</span>
+                            {user.email === currentUser?.email && (
+                              <span className="text-[10px] bg-blue-100 text-blue-600 font-medium px-1.5 py-0.5 rounded">나</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-400">{user.email}</div>
+                        </div>
                       </div>
                     </td>
-                  )}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
 
-      {/* ── 권한 범례 ── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">권한 유형 안내</h3>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {PERMISSION_META.filter((p) => !p.dangerous).map((p) => (
-            <div key={p.key} className="flex items-start gap-2 p-2 rounded-lg bg-gray-50">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
-              <div>
-                <div className="text-xs font-medium text-gray-700">{p.label}</div>
-                <div className="text-[10px] text-gray-400 leading-tight">{p.description}</div>
-              </div>
-            </div>
-          ))}
+                    {/* 부서/직급 */}
+                    <td className="px-4 py-3.5">
+                      <div className="text-sm text-gray-800">{user.departmentName}</div>
+                      <div className="text-xs text-gray-400">{user.position} · {user.jobTitle}</div>
+                    </td>
+
+                    {/* 역할 */}
+                    <td className="px-4 py-3.5">
+                      <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full border ${ROLE_COLORS[user.role as UserRole] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                        {ROLE_LABELS[user.role as UserRole] ?? user.role}
+                      </span>
+                    </td>
+
+                    {/* 권한 */}
+                    <td className="px-4 py-3.5">
+                      <PermissionBadges user={user} />
+                    </td>
+
+                    {/* 상태 */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${user.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
+                        <span className={`text-xs font-medium ${user.isActive ? 'text-green-700' : 'text-gray-400'}`}>
+                          {user.isActive ? '활성' : '비활성'}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* 가입일 */}
+                    <td className="px-4 py-3.5 text-xs text-gray-500">{user.joinedAt ?? '-'}</td>
+
+                    {/* 작업 */}
+                    {canManage && (
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => router.push(`/system/users/${user.id}/edit`)}
+                            className="px-2.5 py-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                          >
+                            수정
+                          </button>
+                          {user.email !== currentUser?.email && user.isActive && (
+                            <button
+                              onClick={() => setDeactivateTarget(user)}
+                              className="px-2.5 py-1.5 text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors font-medium"
+                            >
+                              비활성화
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="text-[11px] text-gray-400 flex items-center gap-1">
-            <svg className="w-3 h-3 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-            위험 권한 (시스템 관리, 사용자 관리, 문서 삭제)은 관리자 계정에만 부여하세요.
-          </p>
-        </div>
-      </div>
+      )}
 
       {/* ── 비활성화 확인 모달 ── */}
-      {deleteTarget && (
+      {deactivateTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <div className="flex items-center gap-3 mb-4">
@@ -369,27 +418,37 @@ export default function UsersListClient() {
             </div>
             <div className="bg-gray-50 rounded-lg p-3.5 mb-5">
               <div className="flex items-center gap-2.5">
-                <div className={`w-8 h-8 rounded-full ${deleteTarget.avatarColor} flex items-center justify-center flex-shrink-0`}>
-                  <span className="text-white text-xs font-bold">{deleteTarget.avatarInitials}</span>
+                <div className={`w-8 h-8 rounded-full ${deactivateTarget.avatarColor} flex items-center justify-center flex-shrink-0`}>
+                  <span className="text-white text-xs font-bold">{deactivateTarget.avatarInitials}</span>
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-800">{deleteTarget.name}</div>
-                  <div className="text-xs text-gray-500">{deleteTarget.email}</div>
+                  <div className="text-sm font-semibold text-gray-800">{deactivateTarget.name}</div>
+                  <div className="text-xs text-gray-500">{deactivateTarget.email}</div>
                 </div>
               </div>
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                onClick={() => setDeactivateTarget(null)}
+                disabled={deactivating}
+                className="flex-1 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
                 취소
               </button>
               <button
-                onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors"
+                onClick={handleDeactivate}
+                disabled={deactivating}
+                className="flex-1 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                비활성화 (Mock)
+                {deactivating ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    처리 중...
+                  </>
+                ) : '비활성화'}
               </button>
             </div>
           </div>

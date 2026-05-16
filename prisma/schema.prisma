@@ -216,6 +216,11 @@ model User {
   avatarColor    String @default("bg-blue-600")
   phone          String?
 
+  /// 관리자 UI 접근 권한 (문서분류·사용자·시스템설정 메뉴)
+  isAdmin        Boolean @default(false)
+  /// 본인 작성 문서 본인 결재 허용 여부
+  canSelfApprove Boolean @default(false)
+
   joinedAt    DateTime?
   lastLoginAt DateTime?
 

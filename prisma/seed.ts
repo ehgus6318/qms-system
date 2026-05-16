@@ -131,7 +131,7 @@ async function main() {
 
   const userKim = await prisma.user.upsert({
     where: { email: 'yhkim@dh2.co.kr' },
-    update: {},
+    update: { isAdmin: true, canSelfApprove: true },
     create: {
       name: '김영훈',
       email: 'yhkim@dh2.co.kr',
@@ -141,6 +141,8 @@ async function main() {
       jobTitle: 'QMS 시스템 관리자',
       role: UserRole.ADMIN,
       status: UserStatus.ACTIVE,
+      isAdmin: true,
+      canSelfApprove: true,
       avatarInitials: '김',
       avatarColor: 'bg-blue-600',
       phone: '010-1234-5678',
@@ -150,7 +152,7 @@ async function main() {
 
   const userLee = await prisma.user.upsert({
     where: { email: 'sjlee@dh2.co.kr' },
-    update: {},
+    update: { isAdmin: false, canSelfApprove: false },
     create: {
       name: '이수진',
       email: 'sjlee@dh2.co.kr',
@@ -160,6 +162,8 @@ async function main() {
       jobTitle: '품질관리 담당',
       role: UserRole.APPROVER,
       status: UserStatus.ACTIVE,
+      isAdmin: false,
+      canSelfApprove: false,
       avatarInitials: '이',
       avatarColor: 'bg-emerald-600',
       phone: '010-2345-6789',
@@ -169,7 +173,7 @@ async function main() {
 
   const userPark = await prisma.user.upsert({
     where: { email: 'jhpark@dh2.co.kr' },
-    update: {},
+    update: { isAdmin: false, canSelfApprove: false },
     create: {
       name: '박준혁',
       email: 'jhpark@dh2.co.kr',
@@ -179,6 +183,8 @@ async function main() {
       jobTitle: '생산 관리자',
       role: UserRole.APPROVER,
       status: UserStatus.ACTIVE,
+      isAdmin: false,
+      canSelfApprove: false,
       avatarInitials: '박',
       avatarColor: 'bg-violet-600',
       phone: '010-3456-7890',
@@ -188,7 +194,7 @@ async function main() {
 
   const userChoi = await prisma.user.upsert({
     where: { email: 'mjchoi@dh2.co.kr' },
-    update: {},
+    update: { isAdmin: false, canSelfApprove: false },
     create: {
       name: '최민지',
       email: 'mjchoi@dh2.co.kr',
@@ -198,6 +204,8 @@ async function main() {
       jobTitle: '연구개발 담당',
       role: UserRole.USER,
       status: UserStatus.ACTIVE,
+      isAdmin: false,
+      canSelfApprove: false,
       avatarInitials: '최',
       avatarColor: 'bg-orange-500',
       phone: '010-4567-8901',
@@ -207,7 +215,7 @@ async function main() {
 
   const userJeong = await prisma.user.upsert({
     where: { email: 'dyjeong@dh2.co.kr' },
-    update: {},
+    update: { isAdmin: false, canSelfApprove: false },
     create: {
       name: '정다영',
       email: 'dyjeong@dh2.co.kr',
@@ -217,6 +225,8 @@ async function main() {
       jobTitle: '영업 담당',
       role: UserRole.USER,
       status: UserStatus.ACTIVE,
+      isAdmin: false,
+      canSelfApprove: false,
       avatarInitials: '정',
       avatarColor: 'bg-pink-600',
       phone: '010-5678-9012',
@@ -226,7 +236,7 @@ async function main() {
 
   const userHan = await prisma.user.upsert({
     where: { email: 'swhan@dh2.co.kr' },
-    update: {},
+    update: { isAdmin: false, canSelfApprove: true },
     create: {
       name: '한상우',
       email: 'swhan@dh2.co.kr',
@@ -236,6 +246,8 @@ async function main() {
       jobTitle: '구매 총괄',
       role: UserRole.MANAGER,
       status: UserStatus.ACTIVE,
+      isAdmin: false,
+      canSelfApprove: true,
       avatarInitials: '한',
       avatarColor: 'bg-teal-600',
       phone: '010-6789-0123',
@@ -245,7 +257,7 @@ async function main() {
 
   const userOh = await prisma.user.upsert({
     where: { email: 'jhoh@dh2.co.kr' },
-    update: {},
+    update: { isAdmin: false, canSelfApprove: false },
     create: {
       name: '오지현',
       email: 'jhoh@dh2.co.kr',
@@ -255,6 +267,8 @@ async function main() {
       jobTitle: '인사 담당',
       role: UserRole.VIEWER,
       status: UserStatus.INACTIVE,
+      isAdmin: false,
+      canSelfApprove: false,
       avatarInitials: '오',
       avatarColor: 'bg-gray-500',
       phone: '010-7890-1234',

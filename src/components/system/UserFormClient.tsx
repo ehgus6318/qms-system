@@ -2,19 +2,17 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // src/components/system/UserFormClient.tsx
-// 사용자 등록 / 수정 공용 폼
+// 사용자 등록 / 수정 공용 폼 — DB 연결
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  USERS,
   USER_DEPARTMENTS,
   ROLE_LABELS,
   ROLE_COLORS,
   ROLE_PERMISSION_PRESET,
   AVATAR_COLORS,
-  type User,
   type UserRole,
   type Permission,
 } from '@/lib/usersData';
@@ -24,6 +22,12 @@ import {
   type ApiDept,
   type ApiCommonCode,
 } from '@/lib/masterApi';
+import {
+  fetchUser,
+  createUser,
+  updateUser,
+  type ApiUser,
+} from '@/lib/userApi';
 
 // ── 폼 상태 타입 ──────────────────────────────────────────────────────────────
 
@@ -32,18 +36,18 @@ interface UserFormState {
   email: string;
   tempPassword: string;
   departmentId: string;
-  position: string;        // 직급
-  jobTitle: string;        // 직책
+  position: string;
+  jobTitle: string;
   role: UserRole;
   isActive: boolean;
-  isAdmin: boolean;         // 관리자 권한
-  canSelfApprove: boolean;  // 본인 결재 허용
-  permissions: Permission[]; // 하위호환 유지
+  isAdmin: boolean;
+  canSelfApprove: boolean;
+  permissions: Permission[];
   avatarColor: string;
   phone: string;
 }
 
-// ── 섹션 헤더 ─────────────────────────────────────────────────────────────────
+// ── UI 서브 컴포넌트 ──────────────────────────────────────────────────────────
 
 function SectionHeader({ title, desc }: { title: string; desc?: string }) {
   return (
@@ -54,18 +58,8 @@ function SectionHeader({ title, desc }: { title: string; desc?: string }) {
   );
 }
 
-// ── 폼 필드 ──────────────────────────────────────────────────────────────────
-
-function Field({
-  label,
-  required,
-  children,
-  hint,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-  hint?: string;
+function Field({ label, required, children, hint }: {
+  label: string; required?: boolean; children: React.ReactNode; hint?: string;
 }) {
   return (
     <div>
@@ -81,74 +75,49 @@ function Field({
 
 const inputCls =
   'w-full px-3.5 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-shadow placeholder-gray-300';
-
 const selectCls =
   'w-full px-3.5 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white';
 
-// ── 토글 스위치 ───────────────────────────────────────────────────────────────
-
-function Toggle({
-  checked,
-  onChange,
-  colorOn = 'bg-blue-500',
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  colorOn?: string;
+function Toggle({ checked, onChange, colorOn = 'bg-blue-500' }: {
+  checked: boolean; onChange: (v: boolean) => void; colorOn?: string;
 }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={[
-        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
-        checked ? colorOn : 'bg-gray-300',
-      ].join(' ')}
+      className={['relative inline-flex h-5 w-9 items-center rounded-full transition-colors', checked ? colorOn : 'bg-gray-300'].join(' ')}
     >
-      <span
-        className={[
-          'inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform',
-          checked ? 'translate-x-4.5' : 'translate-x-0.5',
-        ].join(' ')}
-      />
+      <span className={['inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform', checked ? 'translate-x-4.5' : 'translate-x-0.5'].join(' ')} />
     </button>
   );
 }
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 
-interface Props {
-  mode: 'new' | 'edit';
-  userId?: string;
-}
+interface Props { mode: 'new' | 'edit'; userId?: string; }
 
 export default function UserFormClient({ mode, userId }: Props) {
   const router = useRouter();
 
-  // 수정 모드면 기존 사용자 데이터 로드
-  const existingUser = mode === 'edit' ? USERS.find((u) => u.id === userId) : undefined;
-
+  // ── 상태 ──────────────────────────────────────────────────────────────────
   const [form, setForm] = useState<UserFormState>({
-    name:           existingUser?.name           ?? '',
-    email:          existingUser?.email          ?? '',
-    tempPassword:   '',
-    departmentId:   existingUser?.departmentId   ?? 'D01',
-    position:       existingUser?.position       ?? '',
-    jobTitle:       existingUser?.jobTitle       ?? '',
-    role:           existingUser?.role           ?? 'user',
-    isActive:       existingUser?.isActive       ?? true,
-    isAdmin:        existingUser?.isAdmin        ?? false,
-    canSelfApprove: existingUser?.canSelfApprove ?? false,
-    permissions:    existingUser?.permissions    ?? [...ROLE_PERMISSION_PRESET['user']],
-    avatarColor:    existingUser?.avatarColor    ?? 'bg-blue-600',
-    phone:          existingUser?.phone          ?? '',
+    name: '', email: '', tempPassword: '',
+    departmentId: '', position: '', jobTitle: '',
+    role: 'user', isActive: true, isAdmin: false, canSelfApprove: false,
+    permissions: [...ROLE_PERMISSION_PRESET['user']],
+    avatarColor: 'bg-blue-600', phone: '',
   });
 
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof UserFormState, string>>>({});
+  const [existingUser, setExistingUser] = useState<ApiUser | null>(null);
+  const [loadingUser, setLoadingUser]   = useState(mode === 'edit');
+  const [notFound, setNotFound]         = useState(false);
 
-  // ── 마스터 데이터 ──────────────────────────────────────────────────────────
+  const [saving, setSaving]   = useState(false);
+  const [saved, setSaved]     = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [errors, setErrors]   = useState<Partial<Record<keyof UserFormState, string>>>({});
+
+  // ── 마스터 데이터 ─────────────────────────────────────────────────────────
   const [masterDepts, setMasterDepts]         = useState<ApiDept[]>([]);
   const [masterPositions, setMasterPositions] = useState<ApiCommonCode[]>([]);
   const [masterJobTitles, setMasterJobTitles] = useState<ApiCommonCode[]>([]);
@@ -167,74 +136,157 @@ export default function UserFormClient({ mode, userId }: Props) {
     });
   }, []);
 
-  // 유효 부서 목록: API 데이터 우선, 없으면 하드코딩 fallback
   const effectiveDepts: Array<{ id: string; name: string }> =
     masterDepts.length > 0
       ? masterDepts.filter((d) => d.isActive).map((d) => ({ id: d.id, name: d.name }))
       : USER_DEPARTMENTS;
 
-  // 파생 값
-  const dept = effectiveDepts.find((d) => d.id === form.departmentId);
+  // ── 수정 모드: 기존 사용자 로드 ──────────────────────────────────────────
+
+  useEffect(() => {
+    if (mode !== 'edit' || !userId) return;
+    setLoadingUser(true);
+    fetchUser(userId).then((user) => {
+      if (!user) { setNotFound(true); setLoadingUser(false); return; }
+      setExistingUser(user);
+      setForm({
+        name:           user.name,
+        email:          user.email,
+        tempPassword:   '',
+        departmentId:   user.departmentId,
+        position:       user.position,
+        jobTitle:       user.jobTitle,
+        role:           (user.role as UserRole),
+        isActive:       user.isActive,
+        isAdmin:        user.isAdmin,
+        canSelfApprove: user.canSelfApprove,
+        permissions:    [...ROLE_PERMISSION_PRESET[user.role as UserRole] ?? []],
+        avatarColor:    user.avatarColor,
+        phone:          user.phone ?? '',
+      });
+      setLoadingUser(false);
+    });
+  }, [mode, userId]);
+
+  // ── 폼 helpers ───────────────────────────────────────────────────────────
 
   const update = useCallback(<K extends keyof UserFormState>(key: K, value: UserFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
+    setSaveError('');
   }, []);
 
-  // 역할 변경 시 권한 프리셋 자동 적용
   const handleRoleChange = (role: UserRole) => {
-    update('role', role);
     setForm((prev) => ({ ...prev, role, permissions: [...ROLE_PERMISSION_PRESET[role]] }));
+    setErrors((prev) => ({ ...prev, role: undefined }));
   };
 
-  // 유효성 검사
+  // ── 유효성 검사 ──────────────────────────────────────────────────────────
+
   const validate = (): boolean => {
     const errs: typeof errors = {};
-    if (!form.name.trim()) errs.name = '이름을 입력하세요';
+    if (!form.name.trim())  errs.name = '이름을 입력하세요';
     if (!form.email.trim()) errs.email = '이메일을 입력하세요';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = '올바른 이메일 형식이 아닙니다';
     if (mode === 'new' && !form.tempPassword) errs.tempPassword = '임시 비밀번호를 입력하세요';
+    if (!form.departmentId) errs.departmentId = '부서를 선택하세요';
     if (!form.position.trim()) errs.position = '직급을 입력하세요';
     if (!form.jobTitle.trim()) errs.jobTitle = '직책을 입력하세요';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
+  // ── 저장 ─────────────────────────────────────────────────────────────────
+
   const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 800)); // Mock API 딜레이
+    setSaveError('');
 
-    // ── TODO: 실제 저장 (향후 API 연동 포인트) ──────────────────────────
-    // const payload = {
-    //   name: form.name, email: form.email, departmentId: form.departmentId,
-    //   position: form.position, jobTitle: form.jobTitle, role: form.role,
-    //   isActive: form.isActive, permissions: form.permissions,
-    //   ...(mode === 'new' ? { tempPassword: form.tempPassword, id: generateNextUserId() } : { id: userId }),
-    // };
-    // await fetch(`/api/users${mode === 'edit' ? `/${userId}` : ''}`, {
-    //   method: mode === 'new' ? 'POST' : 'PATCH',
-    //   body: JSON.stringify(payload),
-    // });
-    // ────────────────────────────────────────────────────────────────────
+    if (mode === 'new') {
+      const { data, error, code } = await createUser({
+        name:           form.name.trim(),
+        email:          form.email.trim(),
+        password:       form.tempPassword,
+        departmentId:   form.departmentId,
+        position:       form.position.trim(),
+        jobTitle:       form.jobTitle.trim(),
+        role:           form.role,
+        isAdmin:        form.isAdmin,
+        canSelfApprove: form.canSelfApprove,
+        avatarColor:    form.avatarColor,
+        phone:          form.phone.trim() || undefined,
+      });
+
+      if (!data) {
+        setSaving(false);
+        if (code === 'EMAIL_DUPLICATE') setErrors((p) => ({ ...p, email: '이미 사용 중인 이메일입니다' }));
+        else setSaveError(error ?? '등록 실패');
+        return;
+      }
+    } else {
+      if (!userId) return;
+      const { data, error, code } = await updateUser(userId, {
+        name:           form.name.trim(),
+        email:          form.email.trim(),
+        departmentId:   form.departmentId,
+        position:       form.position.trim(),
+        jobTitle:       form.jobTitle.trim(),
+        role:           form.role,
+        isActive:       form.isActive,
+        isAdmin:        form.isAdmin,
+        canSelfApprove: form.canSelfApprove,
+        avatarColor:    form.avatarColor,
+        phone:          form.phone.trim() || null,
+      });
+
+      if (!data) {
+        setSaving(false);
+        if (code === 'EMAIL_DUPLICATE') setErrors((p) => ({ ...p, email: '이미 사용 중인 이메일입니다' }));
+        else setSaveError(error ?? '수정 실패');
+        return;
+      }
+    }
 
     setSaving(false);
     setSaved(true);
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1000));
     router.push('/system/users');
   };
 
-  if (mode === 'edit' && !existingUser) {
+  // ── 404 ──────────────────────────────────────────────────────────────────
+
+  if (notFound) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-400">
         <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
         <p className="text-sm">사용자를 찾을 수 없습니다</p>
-        <button onClick={() => router.push('/system/users')} className="mt-3 text-xs text-blue-600 hover:underline">목록으로 돌아가기</button>
+        <button onClick={() => router.push('/system/users')} className="mt-3 text-xs text-blue-600 hover:underline">
+          목록으로 돌아가기
+        </button>
       </div>
     );
   }
+
+  // ── 수정 모드 로딩 ────────────────────────────────────────────────────────
+
+  if (loadingUser) {
+    return (
+      <div className="px-6 py-5 max-w-5xl mx-auto space-y-5 animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-48" />
+        <div className="grid grid-cols-3 gap-5">
+          <div className="bg-gray-100 rounded-xl h-64" />
+          <div className="col-span-2 bg-gray-100 rounded-xl h-64" />
+        </div>
+      </div>
+    );
+  }
+
+  const dept = effectiveDepts.find((d) => d.id === form.departmentId);
+
+  // ── 렌더 ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="px-6 py-5">
@@ -245,35 +297,38 @@ export default function UserFormClient({ mode, userId }: Props) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
           <span className="text-sm font-medium">
-            {mode === 'new' ? '사용자가 등록되었습니다 (Mock)' : '수정이 완료되었습니다 (Mock)'}
+            {mode === 'new' ? '사용자가 등록되었습니다' : '수정이 완료되었습니다'}
           </span>
+        </div>
+      )}
+
+      {/* 저장 오류 배너 */}
+      {saveError && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {saveError}
         </div>
       )}
 
       <div className="max-w-5xl mx-auto space-y-5">
         {/* ── 상단 액션바 ── */}
         <div className="flex items-center justify-between">
-          <button
-            onClick={() => router.push('/system/users')}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
-          >
+          <button onClick={() => router.push('/system/users')}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
             사용자 목록으로
           </button>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push('/system/users')}
-              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={() => router.push('/system/users')}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
               취소
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors shadow-sm"
-            >
+            <button onClick={handleSave} disabled={saving}
+              className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors shadow-sm">
               {saving ? (
                 <>
                   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -295,30 +350,22 @@ export default function UserFormClient({ mode, userId }: Props) {
         </div>
 
         <div className="grid grid-cols-3 gap-5 items-start">
-          {/* ── 왼쪽: 기본 정보 + 계정 설정 ── */}
+          {/* ── 왼쪽: 아바타 + 계정 설정 ── */}
           <div className="col-span-1 space-y-5">
 
-            {/* 아바타 프리뷰 */}
+            {/* 아바타 */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <SectionHeader title="아바타" />
               <div className="p-5 flex flex-col items-center gap-4">
                 <div className={`w-16 h-16 rounded-full ${form.avatarColor} flex items-center justify-center shadow-md`}>
-                  <span className="text-white text-xl font-bold">
-                    {form.name ? form.name.charAt(0) : '?'}
-                  </span>
+                  <span className="text-white text-xl font-bold">{form.name ? form.name.charAt(0) : '?'}</span>
                 </div>
                 <div className="grid grid-cols-5 gap-2 w-full">
                   {AVATAR_COLORS.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      title={c.label}
+                    <button key={c.value} type="button" title={c.label}
                       onClick={() => update('avatarColor', c.value)}
-                      className={[
-                        'w-8 h-8 rounded-full mx-auto transition-transform',
-                        c.value,
-                        form.avatarColor === c.value ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-105',
-                      ].join(' ')}
+                      className={['w-8 h-8 rounded-full mx-auto transition-transform', c.value,
+                        form.avatarColor === c.value ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-105'].join(' ')}
                     />
                   ))}
                 </div>
@@ -329,50 +376,26 @@ export default function UserFormClient({ mode, userId }: Props) {
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <SectionHeader title="계정 설정" />
               <div className="p-5 space-y-4">
-                {/* 역할 */}
                 <Field label="시스템 역할" required>
                   <div className="space-y-1.5">
                     {(Object.keys(ROLE_LABELS) as UserRole[]).map((r) => (
-                      <label
-                        key={r}
-                        className={[
-                          'flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors',
-                          form.role === r
-                            ? 'border-blue-300 bg-blue-50'
-                            : 'border-gray-200 hover:bg-gray-50',
-                        ].join(' ')}
-                      >
-                        <input
-                          type="radio"
-                          name="role"
-                          value={r}
-                          checked={form.role === r}
-                          onChange={() => handleRoleChange(r)}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${ROLE_COLORS[r]}`}>
-                            {ROLE_LABELS[r]}
-                          </span>
-                        </div>
+                      <label key={r}
+                        className={['flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors',
+                          form.role === r ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'].join(' ')}>
+                        <input type="radio" name="role" value={r} checked={form.role === r}
+                          onChange={() => handleRoleChange(r)} className="w-4 h-4 text-blue-600" />
+                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${ROLE_COLORS[r]}`}>
+                          {ROLE_LABELS[r]}
+                        </span>
                       </label>
                     ))}
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-1.5">역할 선택 시 권한이 자동으로 적용됩니다</p>
                 </Field>
-
-                {/* Mock 안내 */}
-                <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-                  <svg className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  <p className="text-[11px] text-amber-700">Mock 모드: 실제로 저장되지 않으며 새로고침 시 초기화됩니다</p>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* ── 오른쪽: 2칸 ── */}
+          {/* ── 오른쪽: 기본 정보 + 권한 설정 ── */}
           <div className="col-span-2 space-y-5">
 
             {/* 기본 정보 */}
@@ -380,114 +403,78 @@ export default function UserFormClient({ mode, userId }: Props) {
               <SectionHeader title="기본 정보" desc="사용자 식별 및 연락처 정보" />
               <div className="p-5 grid grid-cols-2 gap-4">
                 <Field label="이름" required>
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => update('name', e.target.value)}
+                  <input type="text" value={form.name} onChange={(e) => update('name', e.target.value)}
                     placeholder="홍길동"
-                    className={inputCls + (errors.name ? ' border-red-400 ring-1 ring-red-300' : '')}
-                  />
+                    className={inputCls + (errors.name ? ' border-red-400 ring-1 ring-red-300' : '')} />
                   {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
                 </Field>
 
                 <Field label="이메일" required>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => update('email', e.target.value)}
-                    placeholder="user@dh2.co.kr"
-                    className={inputCls + (errors.email ? ' border-red-400 ring-1 ring-red-300' : '')}
-                  />
+                  <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)}
+                    placeholder="user@company.co.kr"
+                    className={inputCls + (errors.email ? ' border-red-400 ring-1 ring-red-300' : '')} />
                   {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                 </Field>
 
                 {mode === 'new' && (
                   <Field label="임시 비밀번호" required hint="최초 로그인 후 변경을 안내하세요">
-                    <input
-                      type="password"
-                      value={form.tempPassword}
+                    <input type="password" value={form.tempPassword}
                       onChange={(e) => update('tempPassword', e.target.value)}
                       placeholder="임시 비밀번호"
-                      className={inputCls + (errors.tempPassword ? ' border-red-400 ring-1 ring-red-300' : '')}
-                    />
+                      className={inputCls + (errors.tempPassword ? ' border-red-400 ring-1 ring-red-300' : '')} />
                     {errors.tempPassword && <p className="text-xs text-red-500 mt-1">{errors.tempPassword}</p>}
                   </Field>
                 )}
 
                 <Field label="연락처">
-                  <input
-                    type="tel"
-                    value={form.phone}
-                    onChange={(e) => update('phone', e.target.value)}
-                    placeholder="010-0000-0000"
-                    className={inputCls}
-                  />
+                  <input type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)}
+                    placeholder="010-0000-0000" className={inputCls} />
                 </Field>
 
                 <Field label="부서" required>
-                  <select
-                    value={form.departmentId}
+                  <select value={form.departmentId}
                     onChange={(e) => update('departmentId', e.target.value)}
                     disabled={masterLoading}
-                    className={selectCls}
-                  >
+                    className={selectCls + (errors.departmentId ? ' border-red-400 ring-1 ring-red-300' : '')}>
+                    <option value="">부서 선택</option>
                     {effectiveDepts.map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
+                  {errors.departmentId && <p className="text-xs text-red-500 mt-1">{errors.departmentId}</p>}
                   {masterDepts.length === 0 && !masterLoading && (
-                    <p className="text-[11px] text-amber-600 mt-1">⚠ 마스터 DB 미연결 — 기본 부서 목록 사용 중</p>
+                    <p className="text-[11px] text-amber-600 mt-1">⚠ 마스터 DB 미연결 — 기본 부서 사용 중</p>
                   )}
                 </Field>
 
-                <Field
-                  label="직급"
-                  required
-                  hint={masterPositions.length > 0 ? '입력하거나 목록에서 선택하세요' : '예: 사원, 대리, 과장, 차장, 부장, 이사'}
-                >
+                <Field label="직급" required hint={masterPositions.length > 0 ? '목록에서 선택하거나 직접 입력' : '예: 사원, 대리, 과장'}>
                   {masterPositions.length > 0 && (
                     <datalist id="position-list">
-                      {masterPositions.map((p) => (
-                        <option key={p.id} value={p.name} />
-                      ))}
+                      {masterPositions.map((p) => <option key={p.id} value={p.name} />)}
                     </datalist>
                   )}
-                  <input
-                    type="text"
-                    list={masterPositions.length > 0 ? 'position-list' : undefined}
-                    value={form.position}
-                    onChange={(e) => update('position', e.target.value)}
+                  <input type="text" list={masterPositions.length > 0 ? 'position-list' : undefined}
+                    value={form.position} onChange={(e) => update('position', e.target.value)}
                     placeholder="예: 과장"
-                    className={inputCls + (errors.position ? ' border-red-400 ring-1 ring-red-300' : '')}
-                  />
+                    className={inputCls + (errors.position ? ' border-red-400 ring-1 ring-red-300' : '')} />
                   {errors.position && <p className="text-xs text-red-500 mt-1">{errors.position}</p>}
                 </Field>
 
-                <Field
-                  label="직책"
-                  required
-                  hint={masterJobTitles.length > 0 ? '입력하거나 목록에서 선택하세요' : '예: DMS 담당, 팀장, 문서관리 담당'}
-                >
+                <Field label="직책" required hint={masterJobTitles.length > 0 ? '목록에서 선택하거나 직접 입력' : '예: DMS 담당, 팀장'}>
                   {masterJobTitles.length > 0 && (
                     <datalist id="jobtitle-list">
-                      {masterJobTitles.map((j) => (
-                        <option key={j.id} value={j.name} />
-                      ))}
+                      {masterJobTitles.map((j) => <option key={j.id} value={j.name} />)}
                     </datalist>
                   )}
-                  <input
-                    type="text"
-                    list={masterJobTitles.length > 0 ? 'jobtitle-list' : undefined}
-                    value={form.jobTitle}
-                    onChange={(e) => update('jobTitle', e.target.value)}
+                  <input type="text" list={masterJobTitles.length > 0 ? 'jobtitle-list' : undefined}
+                    value={form.jobTitle} onChange={(e) => update('jobTitle', e.target.value)}
                     placeholder="예: 품질관리 담당"
-                    className={inputCls + (errors.jobTitle ? ' border-red-400 ring-1 ring-red-300' : '')}
-                  />
+                    className={inputCls + (errors.jobTitle ? ' border-red-400 ring-1 ring-red-300' : '')} />
                   {errors.jobTitle && <p className="text-xs text-red-500 mt-1">{errors.jobTitle}</p>}
                 </Field>
               </div>
 
-              {/* 프리뷰 */}
+              {/* 미리보기 */}
               <div className="mx-5 mb-5 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
                 <p className="text-[10px] text-gray-400 mb-2 font-semibold uppercase tracking-wide">미리보기</p>
                 <div className="flex items-center gap-3">
@@ -506,17 +493,12 @@ export default function UserFormClient({ mode, userId }: Props) {
 
             {/* 권한 설정 */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <SectionHeader
-                title="권한 설정"
-                desc="3가지 핵심 권한으로 접근 범위를 제어합니다"
-              />
+              <SectionHeader title="권한 설정" desc="3가지 핵심 권한으로 접근 범위를 제어합니다" />
               <div className="p-5 space-y-3">
 
-                {/* 1. 계정 활성 */}
-                <label className={[
-                  'flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
-                  form.isActive ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50',
-                ].join(' ')}>
+                {/* 계정 활성 */}
+                <label className={['flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+                  form.isActive ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'].join(' ')}>
                   <div className="flex items-start gap-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${form.isActive ? 'bg-green-100' : 'bg-gray-100'}`}>
                       <span className={`text-base ${form.isActive ? 'text-green-600' : 'text-gray-400'}`}>✓</span>
@@ -529,11 +511,9 @@ export default function UserFormClient({ mode, userId }: Props) {
                   <Toggle checked={form.isActive} onChange={(v) => update('isActive', v)} colorOn="bg-green-500" />
                 </label>
 
-                {/* 2. 관리자 권한 */}
-                <label className={[
-                  'flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
-                  form.isAdmin ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50',
-                ].join(' ')}>
+                {/* 관리자 권한 */}
+                <label className={['flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+                  form.isAdmin ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50'].join(' ')}>
                   <div className="flex items-start gap-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${form.isAdmin ? 'bg-red-100' : 'bg-gray-100'}`}>
                       <svg className={`w-4 h-4 ${form.isAdmin ? 'text-red-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -551,11 +531,9 @@ export default function UserFormClient({ mode, userId }: Props) {
                   <Toggle checked={form.isAdmin} onChange={(v) => update('isAdmin', v)} colorOn="bg-red-500" />
                 </label>
 
-                {/* 3. 본인 결재 허용 */}
-                <label className={[
-                  'flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
-                  form.canSelfApprove ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50',
-                ].join(' ')}>
+                {/* 본인 결재 허용 */}
+                <label className={['flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+                  form.canSelfApprove ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50'].join(' ')}>
                   <div className="flex items-start gap-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${form.canSelfApprove ? 'bg-blue-100' : 'bg-gray-100'}`}>
                       <svg className={`w-4 h-4 ${form.canSelfApprove ? 'text-blue-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -570,7 +548,6 @@ export default function UserFormClient({ mode, userId }: Props) {
                   <Toggle checked={form.canSelfApprove} onChange={(v) => update('canSelfApprove', v)} colorOn="bg-blue-500" />
                 </label>
 
-                {/* 관리자 권한 경고 */}
                 {form.isAdmin && (
                   <div className="flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
                     <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -585,21 +562,21 @@ export default function UserFormClient({ mode, userId }: Props) {
               </div>
             </div>
 
-            {/* 수정 시: 변경 이력 안내 */}
+            {/* 수정 시: 원본 데이터 참고 */}
             {mode === 'edit' && existingUser && (
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <SectionHeader title="변경 전 정보 (참고용)" desc="수정 전 원본 데이터" />
                 <div className="p-5 grid grid-cols-2 gap-3 text-xs">
                   {[
-                    ['이름', existingUser.name],
-                    ['이메일', existingUser.email],
-                    ['부서', existingUser.departmentName],
-                    ['직급 / 직책', `${existingUser.position} / ${existingUser.jobTitle}`],
-                    ['역할', ROLE_LABELS[existingUser.role]],
+                    ['이름',      existingUser.name],
+                    ['이메일',    existingUser.email],
+                    ['부서',      existingUser.departmentName],
+                    ['직급/직책', `${existingUser.position} / ${existingUser.jobTitle}`],
+                    ['역할',      existingUser.role],
                     ['계정 상태', existingUser.isActive ? '✅ 활성' : '❌ 비활성'],
                     ['관리자 권한', existingUser.isAdmin ? '✅ 허용' : '—'],
-                    ['본인 결재', existingUser.canSelfApprove ? '✅ 허용' : '—'],
-                    ['가입일', existingUser.joinedAt ?? '-'],
+                    ['본인 결재',  existingUser.canSelfApprove ? '✅ 허용' : '—'],
+                    ['가입일',    existingUser.joinedAt ?? '-'],
                   ].map(([label, val]) => (
                     <div key={label} className="flex justify-between py-2 border-b border-gray-50">
                       <span className="text-gray-400 font-medium">{label}</span>
@@ -614,17 +591,12 @@ export default function UserFormClient({ mode, userId }: Props) {
 
         {/* 하단 액션 */}
         <div className="flex items-center justify-end gap-2 pt-2 pb-6">
-          <button
-            onClick={() => router.push('/system/users')}
-            className="px-6 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
+          <button onClick={() => router.push('/system/users')}
+            className="px-6 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
             취소
           </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors shadow-sm"
-          >
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors shadow-sm">
             {saving ? '저장 중...' : mode === 'new' ? '사용자 등록' : '변경 저장'}
           </button>
         </div>
