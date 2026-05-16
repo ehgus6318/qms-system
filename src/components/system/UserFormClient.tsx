@@ -5,7 +5,7 @@
 // 사용자 등록 / 수정 공용 폼
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   USERS,
@@ -18,6 +18,12 @@ import {
   type UserRole,
   type Permission,
 } from '@/lib/usersData';
+import {
+  fetchDepts,
+  fetchCommonCodes,
+  type ApiDept,
+  type ApiCommonCode,
+} from '@/lib/masterApi';
 
 // ── 폼 상태 타입 ──────────────────────────────────────────────────────────────
 
@@ -142,8 +148,33 @@ export default function UserFormClient({ mode, userId }: Props) {
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof UserFormState, string>>>({});
 
+  // ── 마스터 데이터 ──────────────────────────────────────────────────────────
+  const [masterDepts, setMasterDepts]         = useState<ApiDept[]>([]);
+  const [masterPositions, setMasterPositions] = useState<ApiCommonCode[]>([]);
+  const [masterJobTitles, setMasterJobTitles] = useState<ApiCommonCode[]>([]);
+  const [masterLoading, setMasterLoading]     = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetchDepts(),
+      fetchCommonCodes('POSITION'),
+      fetchCommonCodes('JOB_TITLE'),
+    ]).then(([depts, positions, jobTitles]) => {
+      setMasterDepts(depts);
+      setMasterPositions(positions);
+      setMasterJobTitles(jobTitles);
+      setMasterLoading(false);
+    });
+  }, []);
+
+  // 유효 부서 목록: API 데이터 우선, 없으면 하드코딩 fallback
+  const effectiveDepts: Array<{ id: string; name: string }> =
+    masterDepts.length > 0
+      ? masterDepts.filter((d) => d.isActive).map((d) => ({ id: d.id, name: d.name }))
+      : USER_DEPARTMENTS;
+
   // 파생 값
-  const dept = USER_DEPARTMENTS.find((d) => d.id === form.departmentId);
+  const dept = effectiveDepts.find((d) => d.id === form.departmentId);
 
   const update = useCallback(<K extends keyof UserFormState>(key: K, value: UserFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -397,17 +428,33 @@ export default function UserFormClient({ mode, userId }: Props) {
                   <select
                     value={form.departmentId}
                     onChange={(e) => update('departmentId', e.target.value)}
+                    disabled={masterLoading}
                     className={selectCls}
                   >
-                    {USER_DEPARTMENTS.map((d) => (
+                    {effectiveDepts.map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
+                  {masterDepts.length === 0 && !masterLoading && (
+                    <p className="text-[11px] text-amber-600 mt-1">⚠ 마스터 DB 미연결 — 기본 부서 목록 사용 중</p>
+                  )}
                 </Field>
 
-                <Field label="직급" required hint="예: 사원, 대리, 과장, 차장, 부장, 이사">
+                <Field
+                  label="직급"
+                  required
+                  hint={masterPositions.length > 0 ? '입력하거나 목록에서 선택하세요' : '예: 사원, 대리, 과장, 차장, 부장, 이사'}
+                >
+                  {masterPositions.length > 0 && (
+                    <datalist id="position-list">
+                      {masterPositions.map((p) => (
+                        <option key={p.id} value={p.name} />
+                      ))}
+                    </datalist>
+                  )}
                   <input
                     type="text"
+                    list={masterPositions.length > 0 ? 'position-list' : undefined}
                     value={form.position}
                     onChange={(e) => update('position', e.target.value)}
                     placeholder="예: 과장"
@@ -416,9 +463,21 @@ export default function UserFormClient({ mode, userId }: Props) {
                   {errors.position && <p className="text-xs text-red-500 mt-1">{errors.position}</p>}
                 </Field>
 
-                <Field label="직책" required hint="예: DMS 담당, 팀장, 문서관리 담당">
+                <Field
+                  label="직책"
+                  required
+                  hint={masterJobTitles.length > 0 ? '입력하거나 목록에서 선택하세요' : '예: DMS 담당, 팀장, 문서관리 담당'}
+                >
+                  {masterJobTitles.length > 0 && (
+                    <datalist id="jobtitle-list">
+                      {masterJobTitles.map((j) => (
+                        <option key={j.id} value={j.name} />
+                      ))}
+                    </datalist>
+                  )}
                   <input
                     type="text"
+                    list={masterJobTitles.length > 0 ? 'jobtitle-list' : undefined}
                     value={form.jobTitle}
                     onChange={(e) => update('jobTitle', e.target.value)}
                     placeholder="예: 품질관리 담당"
